@@ -60,7 +60,7 @@ export interface DataPrivacySettings {
 }
 
 export interface AIConfig {
-  provider: 'openai' | 'anthropic' | 'google';
+  provider: 'openai' | 'anthropic' | 'google' | 'openrouter';
   model: string;
   apiKey: string;
   maxTokens: number;
