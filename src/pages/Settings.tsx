@@ -19,6 +19,7 @@ const aiProviders = [
   { value: 'openai', label: 'OpenAI', models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
   { value: 'anthropic', label: 'Anthropic', models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'] },
   { value: 'google', label: 'Google AI', models: ['gemini-pro', 'gemini-pro-vision'] },
+  { value: 'openrouter', label: 'OpenRouter', models: ['openai/gpt-4-turbo', 'anthropic/claude-3-opus', 'google/gemini-pro', 'meta-llama/llama-3-70b-instruct', 'mistralai/mixtral-8x22b-instruct', 'qwen/qwen-2-72b-instruct'] },
 ];
 
 export default function SettingsPage() {
