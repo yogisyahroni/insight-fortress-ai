@@ -95,3 +95,72 @@ export interface DashboardConfig {
   widgets: Widget[];
   createdAt: Date;
 }
+
+// KPI Scorecard
+export interface KPI {
+  id: string;
+  name: string;
+  dataSetId: string;
+  column: string;
+  aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max' | 'last';
+  target?: number;
+  unit?: string;
+  trend?: 'up' | 'down' | 'flat';
+  createdAt: Date;
+}
+
+// Data Alerts
+export interface DataAlert {
+  id: string;
+  name: string;
+  dataSetId: string;
+  column: string;
+  condition: 'gt' | 'lt' | 'eq' | 'gte' | 'lte' | 'change_pct';
+  threshold: number;
+  enabled: boolean;
+  triggered: boolean;
+  lastChecked?: Date;
+  createdAt: Date;
+}
+
+// Data Story
+export interface DataStory {
+  id: string;
+  title: string;
+  dataSetId: string;
+  narrative: string;
+  insights: string[];
+  charts: { type: string; title: string; xAxis: string; yAxis: string }[];
+  createdAt: Date;
+}
+
+// Data Relationship
+export interface DataRelationship {
+  id: string;
+  sourceDataSetId: string;
+  targetDataSetId: string;
+  sourceColumn: string;
+  targetColumn: string;
+  type: 'one-to-one' | 'one-to-many' | 'many-to-many';
+  createdAt: Date;
+}
+
+// Bookmark / Saved View
+export interface Bookmark {
+  id: string;
+  name: string;
+  dataSetId: string;
+  filters: { column: string; value: string }[];
+  sortColumn?: string;
+  sortDirection?: 'asc' | 'desc';
+  createdAt: Date;
+}
+
+// Calculated Field
+export interface CalculatedField {
+  id: string;
+  dataSetId: string;
+  name: string;
+  formula: string;
+  createdAt: Date;
+}
