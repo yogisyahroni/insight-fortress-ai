@@ -128,10 +128,10 @@ export default function DataExplorer() {
           </div>
           <div className="min-w-[150px]">
             <label className="text-xs text-muted-foreground mb-1 block">Filter Column</label>
-            <Select value={filterCol} onValueChange={setFilterCol}>
+            <Select value={filterCol || "none"} onValueChange={v => setFilterCol(v === "none" ? "" : v)}>
               <SelectTrigger className="bg-muted/50 border-border"><SelectValue placeholder="Column" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {dataset?.columns.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
