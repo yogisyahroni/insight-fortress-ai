@@ -16,6 +16,12 @@ import AIReports from "./pages/AIReports";
 import Reports from "./pages/Reports";
 import DataPrivacy from "./pages/DataPrivacy";
 import Settings from "./pages/Settings";
+import AskData from "./pages/AskData";
+import DataStories from "./pages/DataStories";
+import KPIScorecard from "./pages/KPIScorecard";
+import PivotTable from "./pages/PivotTable";
+import Alerts from "./pages/Alerts";
+import DataModeling from "./pages/DataModeling";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,12 +38,18 @@ const App = () => (
             <Route path="/upload" element={<UploadData />} />
             <Route path="/datasets" element={<Datasets />} />
             <Route path="/explorer" element={<DataExplorer />} />
+            <Route path="/ask-data" element={<AskData />} />
+            <Route path="/pivot" element={<PivotTable />} />
             <Route path="/chart-builder" element={<ChartBuilder />} />
             <Route path="/dashboard-builder" element={<DashboardBuilder />} />
+            <Route path="/kpi" element={<KPIScorecard />} />
             <Route path="/query" element={<QueryEditor />} />
             <Route path="/etl" element={<ETLPipeline />} />
+            <Route path="/modeling" element={<DataModeling />} />
+            <Route path="/stories" element={<DataStories />} />
             <Route path="/ai-reports" element={<AIReports />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/alerts" element={<Alerts />} />
             <Route path="/privacy" element={<DataPrivacy />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
