@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Upload, GitBranch, FileText, Shield, Settings,
   ChevronLeft, ChevronRight, Database, Sparkles, BarChart3, Code2,
   Search, LayoutGrid, PaintBucket, MessageSquare, BookOpen, Target,
-  Table2, Bell, Network,
+  Table2, Bell, Network, Calculator, Bookmark, Paintbrush, Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,10 @@ const menuItems = [
   { icon: Code2, label: 'SQL Query', path: '/query' },
   { icon: GitBranch, label: 'ETL Pipeline', path: '/etl' },
   { icon: Network, label: 'Data Modeling', path: '/modeling' },
+  { icon: Calculator, label: 'Calculated Fields', path: '/calculated-fields' },
+  { icon: Layers, label: 'Drill-Down', path: '/drill-down' },
+  { icon: Paintbrush, label: 'Formatting', path: '/formatting' },
+  { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
   { icon: BookOpen, label: 'Data Stories', path: '/stories' },
   { icon: Sparkles, label: 'AI Reports', path: '/ai-reports' },
   { icon: FileText, label: 'Reports', path: '/reports' },
