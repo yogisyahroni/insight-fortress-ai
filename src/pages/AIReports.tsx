@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sparkles, FileText, Lightbulb, TrendingUp, Target,
-  Send, Loader2, AlertTriangle, Shield,
+  Send, Loader2, AlertTriangle, Shield, Download,
 } from 'lucide-react';
 import { useDataStore } from '@/stores/dataStore';
 import { Button } from '@/components/ui/button';
@@ -264,14 +264,27 @@ export default function AIReports() {
       {generatedReport && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="bg-card rounded-xl p-8 border border-border shadow-card">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <FileText className="w-5 h-5 text-primary-foreground" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
+                <FileText className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">{generatedReport.title}</h2>
+                <p className="text-sm text-muted-foreground">Generated on {new Date(generatedReport.createdAt).toLocaleDateString()}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">{generatedReport.title}</h2>
-              <p className="text-sm text-muted-foreground">Generated on {new Date(generatedReport.createdAt).toLocaleDateString()}</p>
-            </div>
+            <Button variant="outline" size="sm" onClick={() => {
+              const content = `# ${generatedReport.title}\n\nGenerated: ${new Date(generatedReport.createdAt).toLocaleDateString()}\n\n${generatedReport.content}\n\n## Data Story\n${generatedReport.story}\n\n## Key Decisions\n${generatedReport.decisions.map((d,i) => `${i+1}. ${d}`).join('\n')}\n\n## Recommendations\n${generatedReport.recommendations.map((r,i) => `${i+1}. ${r}`).join('\n')}`;
+              const blob = new Blob([content], { type: 'text/markdown' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = `${generatedReport.title}.md`; a.click();
+              URL.revokeObjectURL(url);
+              toast({ title: 'Report exported' });
+            }}>
+              <Download className="w-4 h-4 mr-1" /> Export
+            </Button>
           </div>
 
           <div className="prose prose-invert max-w-none">

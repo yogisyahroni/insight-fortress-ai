@@ -22,6 +22,10 @@ import KPIScorecard from "./pages/KPIScorecard";
 import PivotTable from "./pages/PivotTable";
 import Alerts from "./pages/Alerts";
 import DataModeling from "./pages/DataModeling";
+import CalculatedFields from "./pages/CalculatedFields";
+import Bookmarks from "./pages/Bookmarks";
+import ConditionalFormatting from "./pages/ConditionalFormatting";
+import DrillDown from "./pages/DrillDown";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +50,10 @@ const App = () => (
             <Route path="/query" element={<QueryEditor />} />
             <Route path="/etl" element={<ETLPipeline />} />
             <Route path="/modeling" element={<DataModeling />} />
+            <Route path="/calculated-fields" element={<CalculatedFields />} />
+            <Route path="/drill-down" element={<DrillDown />} />
+            <Route path="/formatting" element={<ConditionalFormatting />} />
+            <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/stories" element={<DataStories />} />
             <Route path="/ai-reports" element={<AIReports />} />
             <Route path="/reports" element={<Reports />} />
