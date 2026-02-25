@@ -7,6 +7,7 @@ import {
   Search, LayoutGrid, PaintBucket, MessageSquare, BookOpen, Target,
   Table2, Bell, Network, Calculator, Bookmark, Paintbrush, Layers,
   Globe, Link2, StickyNote, Variable, Clock, ShieldCheck, Code, FileDown, RefreshCw,
+  HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -84,36 +85,57 @@ export function Sidebar() {
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
-            <Tooltip key={item.path} delayDuration={300}>
-              <TooltipTrigger asChild>
-                <Link
-                  to={item.path}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative',
-                    isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            <div key={item.path} className="flex items-center gap-0.5">
+              <Link
+                to={item.path}
+                className={cn(
+                  'flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                {isActive && (
+                  <motion.div layoutId="activeIndicator" className="absolute left-0 w-1 h-6 bg-primary rounded-r-full" transition={{ duration: 0.2 }} />
+                )}
+                <item.icon className={cn('w-4 h-4 flex-shrink-0', isActive && 'text-primary')} />
+                <AnimatePresence mode="wait">
+                  {!collapsed && (
+                    <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
+                      className="font-medium whitespace-nowrap text-sm">
+                      {item.label}
+                    </motion.span>
                   )}
-                >
-                  {isActive && (
-                    <motion.div layoutId="activeIndicator" className="absolute left-0 w-1 h-6 bg-primary rounded-r-full" transition={{ duration: 0.2 }} />
-                  )}
-                  <item.icon className={cn('w-4 h-4 flex-shrink-0', isActive && 'text-primary')} />
-                  <AnimatePresence mode="wait">
-                    {!collapsed && (
-                      <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                        className="font-medium whitespace-nowrap text-sm">
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-[260px] text-xs leading-relaxed">
-                <p className="font-semibold mb-1">{item.label}</p>
-                <p className="text-popover-foreground/80">{item.tooltip}</p>
-              </TooltipContent>
-            </Tooltip>
+                </AnimatePresence>
+              </Link>
+              {!collapsed && (
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <button
+                      className="flex-shrink-0 p-1 rounded-md text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
+                      tabIndex={-1}
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[260px] text-xs leading-relaxed">
+                    <p className="font-semibold mb-1">{item.label}</p>
+                    <p className="text-popover-foreground/80">{item.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {collapsed && (
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <span className="absolute inset-0" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[260px] text-xs leading-relaxed">
+                    <p className="font-semibold mb-1">{item.label}</p>
+                    <p className="text-popover-foreground/80">{item.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
           );
         })}
       </nav>
