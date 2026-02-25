@@ -26,6 +26,14 @@ import CalculatedFields from "./pages/CalculatedFields";
 import Bookmarks from "./pages/Bookmarks";
 import ConditionalFormatting from "./pages/ConditionalFormatting";
 import DrillDown from "./pages/DrillDown";
+import GeoVisualization from "./pages/GeoVisualization";
+import ScheduledReports from "./pages/ScheduledReports";
+import RowLevelSecurity from "./pages/RowLevelSecurity";
+import Parameters from "./pages/Parameters";
+import CrossFilter from "./pages/CrossFilter";
+import Annotations from "./pages/Annotations";
+import EmbedShare from "./pages/EmbedShare";
+import ExportPDF from "./pages/ExportPDF";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +62,14 @@ const App = () => (
             <Route path="/drill-down" element={<DrillDown />} />
             <Route path="/formatting" element={<ConditionalFormatting />} />
             <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/geo" element={<GeoVisualization />} />
+            <Route path="/cross-filter" element={<CrossFilter />} />
+            <Route path="/annotations" element={<Annotations />} />
+            <Route path="/parameters" element={<Parameters />} />
+            <Route path="/scheduled-reports" element={<ScheduledReports />} />
+            <Route path="/rls" element={<RowLevelSecurity />} />
+            <Route path="/embed" element={<EmbedShare />} />
+            <Route path="/export" element={<ExportPDF />} />
             <Route path="/stories" element={<DataStories />} />
             <Route path="/ai-reports" element={<AIReports />} />
             <Route path="/reports" element={<Reports />} />

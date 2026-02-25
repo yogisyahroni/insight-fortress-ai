@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, Database, Sparkles, BarChart3, Code2,
   Search, LayoutGrid, PaintBucket, MessageSquare, BookOpen, Target,
   Table2, Bell, Network, Calculator, Bookmark, Paintbrush, Layers,
+  Globe, Link2, StickyNote, Variable, Clock, ShieldCheck, Code, FileDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +27,14 @@ const menuItems = [
   { icon: Layers, label: 'Drill-Down', path: '/drill-down' },
   { icon: Paintbrush, label: 'Formatting', path: '/formatting' },
   { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
+  { icon: Globe, label: 'Geo Visualization', path: '/geo' },
+  { icon: Link2, label: 'Cross-Filter', path: '/cross-filter' },
+  { icon: StickyNote, label: 'Annotations', path: '/annotations' },
+  { icon: Variable, label: 'Parameters', path: '/parameters' },
+  { icon: Clock, label: 'Scheduled Reports', path: '/scheduled-reports' },
+  { icon: ShieldCheck, label: 'Row-Level Security', path: '/rls' },
+  { icon: Code, label: 'Embed & Share', path: '/embed' },
+  { icon: FileDown, label: 'Export', path: '/export' },
   { icon: BookOpen, label: 'Data Stories', path: '/stories' },
   { icon: Sparkles, label: 'AI Reports', path: '/ai-reports' },
   { icon: FileText, label: 'Reports', path: '/reports' },
