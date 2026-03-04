@@ -69,7 +69,9 @@ jobs:
       - name: Vite production build
         run: npm run build
 
-  # ─── 3. Smoke Tests (main/develop only) ────────────────────────────────────
+  # ─── 3. Smoke Tests ─────────────────────────────────────────────────────────
+  # NOTE: Build, start, AND test are in ONE step so the background
+  # process is not killed between GitHub Actions steps.
   smoke:
     name: Smoke Tests (API)
     runs-on: ubuntu-latest
@@ -113,10 +115,11 @@ jobs:
         working-directory: ./datalens-backend
         run: go mod download
 
-      - name: Build and start backend
+      # ── Single step: build + start + smoke test ──────────────────────────
+      # All in ONE run block so the background server stays alive.
+      - name: Build, start and smoke test
         working-directory: ./datalens-backend
         env:
-          # ── Exact names from internal/config/config.go ──────────────────────
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/datalens?sslmode=disable"
           REDIS_URL: "redis://localhost:6379"
           JWT_SECRET: "ci-smoke-test-secret-key-minimum-32chars!!"
@@ -124,41 +127,48 @@ jobs:
           PORT: "8080"
           ENV: "test"
           CORS_ORIGINS: "*"
-          # S3 optional — leave empty so MinIO is disabled gracefully
           S3_ENDPOINT: ""
           S3_ACCESS_KEY: ""
           S3_SECRET_KEY: ""
           S3_BUCKET: "datalens"
-          # AI optional
           AI_API_KEY: ""
-          # Do NOT serve static files in CI (no dist/ present)
           STATIC_DIR: ""
         run: |
+          # Build the binary
           go build -o /tmp/datalens-server ./cmd/server/
+
+          # Start server in background (same shell = same process group, stays alive)
           /tmp/datalens-server &
           SERVER_PID=$!
-          echo "Server started (PID=$SERVER_PID), waiting for readiness..."
+          echo "Server started (PID=$SERVER_PID)"
+
+          # Wait up to 30s for the server to become ready
+          READY=false
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:8080/health > /dev/null 2>&1 || \
-               curl -sf http://localhost:8080/api/v1/auth/me > /dev/null 2>&1; then
-              echo "Server is ready after ${i}s"
+            HTTP=$(curl -o /dev/null -s -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "000")
+            if [ "$HTTP" != "000" ]; then
+              echo "Server ready after ${i}s (HTTP $HTTP)"
+              READY=true
               break
             fi
             sleep 1
           done
-          # Verify server is actually responding
-          STATUS=$(curl -o /dev/null -s -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "000")
-          echo "Health endpoint HTTP status: $STATUS"
-          if [ "$STATUS" = "000" ]; then
-            echo "ERROR: Server did not start. Check logs above."
-            kill $SERVER_PID 2>/dev/null || true
+
+          if [ "$READY" = "false" ]; then
+            echo "ERROR: Server did not start within 30s"
+            kill "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
 
-      - name: Run smoke tests
-        run: |
+          # Run smoke tests (server is still alive in this same shell)
+          cd ..
           chmod +x ./datalens-backend/scripts/smoke_test.sh
           ./datalens-backend/scripts/smoke_test.sh http://localhost:8080/api/v1
+          STATUS=$?
+
+          # Clean up
+          kill "$SERVER_PID" 2>/dev/null || true
+          exit $STATUS
 
   # ─── 4. Docker Build (main only) ────────────────────────────────────────────
   docker:
