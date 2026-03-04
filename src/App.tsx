@@ -66,6 +66,7 @@ const App = () => (
             <Route path="/db-diagram" element={<DBDiagram />} />
             <Route path="/visual-etl" element={<VisualETL />} />
             <Route path="/calculated-fields" element={<CalculatedFields />} />
+            <Route path="/data-profiling" element={<DataProfiling />} />
             <Route path="/drill-down" element={<DrillDown />} />
             <Route path="/formatting" element={<ConditionalFormatting />} />
             <Route path="/bookmarks" element={<Bookmarks />} />
