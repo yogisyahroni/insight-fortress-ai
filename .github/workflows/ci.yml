@@ -7,32 +7,17 @@ on:
     branches: [main, develop]
 
 env:
-  GO_VERSION: "1.22"
+  GO_VERSION: "1.23"
   NODE_VERSION: "20"
 
 jobs:
-  # ─── Backend ──────────────────────────────────────────────────────────────────
+  # ─── Backend ───────────────────────────────────────────────────────────────
   backend:
     name: Backend (Go)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./datalens-backend
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: datalens_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout
@@ -50,24 +35,24 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      # ── Unit Tests (pure, no DB required) ─────────────────────────────────────
-      - name: Unit Tests — engine (aggregator / anomaly / formula / visual_etl)
+      # ── Unit Tests (pure, no DB required) ────────────────────────────────
+      - name: Unit Tests - engine (formula / visual_etl / anomaly / aggregator)
         run: go test ./internal/engine/... -v -count=1 -timeout 120s
 
-      - name: Unit Tests — parser (pbix / tableau / pptx)
+      - name: Unit Tests - parser (pbix / tableau / pptx)
         run: go test ./internal/parser/... -v -count=1 -timeout 120s
 
-      # ── Full build verification ────────────────────────────────────────────────
+      # ── Full build verification ───────────────────────────────────────────
       - name: Build binary
         run: go build -o /tmp/datalens-server ./cmd/server/
 
-      # ── Security advisory (non-blocking) ──────────────────────────────────────
+      # ── Security advisory (non-blocking) ─────────────────────────────────
       - name: govulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./... || true
 
-  # ─── Frontend ─────────────────────────────────────────────────────────────────
+  # ─── Frontend ──────────────────────────────────────────────────────────────
   frontend:
     name: Frontend (React + TypeScript)
     runs-on: ubuntu-latest
@@ -91,7 +76,7 @@ jobs:
       - name: Vite production build
         run: npm run build
 
-  # ─── Integration / Smoke Tests ────────────────────────────────────────────────
+  # ─── Integration / Smoke Tests ─────────────────────────────────────────────
   smoke:
     name: Smoke Tests (API)
     runs-on: ubuntu-latest
@@ -136,33 +121,44 @@ jobs:
         working-directory: ./datalens-backend
         run: go mod download
 
-      - name: Start backend
+      - name: Build and start backend
         working-directory: ./datalens-backend
         env:
+          # These must EXACTLY match config.go env var key names
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/datalens
-          REDIS_ADDR: localhost:6379
-          JWT_SECRET: smoke-test-jwt-secret-minimum-32-chars
-          SERVER_PORT: "8080"
-          SERVER_ENV: test
-          CORS_ALLOWED_ORIGINS: "*"
-          MINIO_ENDPOINT: ""
-          MINIO_ACCESS_KEY: ""
-          MINIO_SECRET_KEY: ""
-          MINIO_BUCKET: datalens
-          AI_OPENAI_KEY: ""
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: smoke-test-jwt-secret-minimum-32-chars!!
+          PORT: "8080"
+          ENV: test
+          CORS_ORIGINS: "*"
+          # S3 / MinIO optional — leave empty
+          S3_ENDPOINT: ""
+          S3_ACCESS_KEY: ""
+          S3_SECRET_KEY: ""
+          S3_BUCKET: datalens
+          # AI optional
+          AI_API_KEY: ""
+          # No static files in CI
+          STATIC_DIR: ""
         run: |
           go build -o /tmp/datalens-server ./cmd/server/
           /tmp/datalens-server &
-          sleep 5  # wait for migrations + server startup
-          curl -sf http://localhost:8080/health || \
-          curl -sf http://localhost:8080/api/v1/auth/me || true
+          echo "Waiting for server to be ready..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "Server up after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://localhost:8080/health || { echo "Health check failed"; exit 1; }
 
       - name: Run smoke tests
         run: |
           chmod +x ./datalens-backend/scripts/smoke_test.sh
           ./datalens-backend/scripts/smoke_test.sh http://localhost:8080/api/v1
 
-  # ─── Docker image (main branch only) ─────────────────────────────────────────
+  # ─── Docker image (main branch only) ───────────────────────────────────────
   docker:
     name: Docker Build
     runs-on: ubuntu-latest

@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 # === STAGE 1: Builder ===
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine3.20 AS builder
 
-# Install build dependencies
-RUN apk add --no-cache gcc musl-dev
+# Install build dependencies (gcc for cgo, git for ldflags version tag)
+RUN apk add --no-cache gcc musl-dev git
 
 WORKDIR /app
 
@@ -14,13 +14,13 @@ RUN go mod download
 # Copy source
 COPY . .
 
-# Build the binary
+# Build the binary (CGO disabled for a fully static binary)
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s -X main.version=$(git describe --tags --always 2>/dev/null || echo 'dev')" \
     -o bin/datalens ./cmd/server
 
-# === STAGE 2: Runtime ===
-FROM alpine:3.19 AS runtime
+# === STAGE 2: Runtime (distroless-style minimal image) ===
+FROM alpine:3.20 AS runtime
 
 RUN apk add --no-cache ca-certificates tzdata
 
