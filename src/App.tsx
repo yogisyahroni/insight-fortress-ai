@@ -22,6 +22,8 @@ import KPIScorecard from "./pages/KPIScorecard";
 import PivotTable from "./pages/PivotTable";
 import Alerts from "./pages/Alerts";
 import DataModeling from "./pages/DataModeling";
+import DBDiagram from "./pages/DBDiagram";
+import VisualETL from "./pages/VisualETL";
 import CalculatedFields from "./pages/CalculatedFields";
 import Bookmarks from "./pages/Bookmarks";
 import ConditionalFormatting from "./pages/ConditionalFormatting";
