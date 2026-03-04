@@ -20,6 +20,7 @@ type Config struct {
 	CORS       CORSConfig
 	RateLimit  RateLimitConfig
 	Encryption EncryptionConfig
+	Static     StaticConfig
 }
 
 type ServerConfig struct {
@@ -78,6 +79,10 @@ type EncryptionConfig struct {
 	DBConnKey string // 32-byte AES-256 key for encrypting external DB passwords
 }
 
+type StaticConfig struct {
+	Dir string // path to the React frontend dist/ folder (default: ../dist)
+}
+
 // Load reads configuration from environment variables and .env file.
 func Load() (*Config, error) {
 	v := viper.New()
@@ -101,6 +106,7 @@ func Load() (*Config, error) {
 	v.SetDefault("PIPELINE_MAX_CONCURRENT", 5)
 	v.SetDefault("PIPELINE_NODE_TIMEOUT", 60)
 	v.SetDefault("PIPELINE_MAX_ROWS", 1000000)
+	v.SetDefault("STATIC_DIR", "../dist")
 
 	// Read from .env file if present
 	v.SetConfigFile(".env")
@@ -182,6 +188,9 @@ func Load() (*Config, error) {
 		},
 		Encryption: EncryptionConfig{
 			DBConnKey: v.GetString("DB_CONN_ENCRYPTION_KEY"),
+		},
+		Static: StaticConfig{
+			Dir: v.GetString("STATIC_DIR"),
 		},
 	}
 

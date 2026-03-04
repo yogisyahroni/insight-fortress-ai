@@ -265,7 +265,32 @@ func main() {
 	importGrp.Post("/parse", importH.ParseFile)
 	importGrp.Post("/confirm", importH.ConfirmImport)
 
-	// --- Start server ---
+	// --- Static Frontend (React SPA) ---
+	// Serve the built frontend from ../dist/ if it exists.
+	// All non-API routes return index.html (SPA client-side routing).
+	distDir := cfg.Static.Dir
+	if distDir == "" {
+		distDir = "../dist"
+	}
+	if _, err := os.Stat(distDir); err == nil {
+		app.Static("/", distDir, fiber.Static{
+			Compress:  true,
+			ByteRange: true,
+			Browse:    false,
+			Index:     "index.html",
+		})
+		// SPA fallback: serve index.html for any unmatched route
+		app.Use(func(c *fiber.Ctx) error {
+			if c.Path() != "/" && !contains(c.Path(), "/api/", "/ws", "/health") {
+				return c.SendFile(distDir + "/index.html")
+			}
+			return c.Next()
+		})
+		log.Info().Str("dir", distDir).Msg("Serving frontend static files")
+	} else {
+		log.Warn().Str("dir", distDir).Msg("Frontend dist/ not found — API-only mode")
+	}
+
 	addr := ":" + cfg.Server.Port
 	log.Info().Str("address", addr).Str("env", cfg.Server.Env).Msg("DataLens API starting")
 
@@ -375,4 +400,18 @@ func boolStatus(ok bool) string {
 		return "ok"
 	}
 	return "error"
+}
+
+// contains reports whether s contains any of the provided substrings.
+func contains(s string, substrings ...string) bool {
+	for _, sub := range substrings {
+		if len(s) >= len(sub) {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
