@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # === STAGE 1: Builder ===
-FROM golang:1.23-alpine3.20 AS builder
+FROM golang:1.24-alpine3.21 AS builder
 
 # Install build dependencies (gcc for cgo, git for ldflags version tag)
 RUN apk add --no-cache gcc musl-dev git
@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o bin/datalens ./cmd/server
 
 # === STAGE 2: Runtime (distroless-style minimal image) ===
-FROM alpine:3.20 AS runtime
+FROM alpine:3.21 AS runtime
 
 RUN apk add --no-cache ca-certificates tzdata
 
