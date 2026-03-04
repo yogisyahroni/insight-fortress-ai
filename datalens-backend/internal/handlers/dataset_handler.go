@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	excelize "github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -92,7 +95,12 @@ func (h *DatasetHandler) UploadDataset(c *fiber.Ctx) error {
 	if ext == ".csv" {
 		headers, rows, err = parseCSV(file)
 	} else {
-		headers, rows, err = parseExcel(file)
+		// Read all bytes first (excelize needs seekable reader)
+		rawBytes, readErr := io.ReadAll(file)
+		if readErr != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read file"})
+		}
+		headers, rows, err = parseExcel(rawBytes)
 	}
 	if err != nil {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "Failed to parse file: " + err.Error()})
@@ -119,7 +127,7 @@ func (h *DatasetHandler) UploadDataset(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create data table"})
 	}
 
-	// Bulk insert rows
+	// Bulk insert rows using PostgreSQL-compatible $N placeholders
 	if err := bulkInsertRows(h.db, tableName, headers, rows); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to insert data"})
 	}
@@ -130,8 +138,11 @@ func (h *DatasetHandler) UploadDataset(c *fiber.Ctx) error {
 		datasetName = strings.TrimSuffix(fileHeader.Filename, ext)
 	}
 
-	// Serialize column defs
-	colJSON := encodeColumns(columnDefs)
+	// Serialize column defs using proper json.Marshal (BUG-10 fix)
+	colJSON, jsonErr := encodeColumns(columnDefs)
+	if jsonErr != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encode columns"})
+	}
 
 	datasetRecord := models.Dataset{
 		ID:            datasetID,
@@ -185,8 +196,10 @@ func (h *DatasetHandler) QueryDatasetData(c *fiber.Ctx) error {
 		limit = 500
 	}
 	offset := (page - 1) * limit
-	sortCol := c.Query("sortBy", "")
-	sortDir := c.Query("sortDir", "asc")
+
+	// BUG-08 fix: support both 'sortBy'/'sortDir' (backend convention) and 'sort'/'order' (frontend alias)
+	sortCol := c.Query("sortBy", c.Query("sort", ""))
+	sortDir := c.Query("sortDir", c.Query("order", "asc"))
 	if sortDir != "asc" && sortDir != "desc" {
 		sortDir = "asc"
 	}
@@ -226,7 +239,8 @@ func (h *DatasetHandler) QueryDatasetData(c *fiber.Ctx) error {
 	})
 }
 
-// GetDatasetStats returns per-column statistics.
+// GetDatasetStats returns per-column statistics computed via SQL aggregation.
+// PERF-03 fix: uses DB-level aggregation instead of loading all rows into RAM.
 // GET /api/v1/datasets/:id/stats
 func (h *DatasetHandler) GetDatasetStats(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
@@ -237,21 +251,70 @@ func (h *DatasetHandler) GetDatasetStats(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Dataset not found"})
 	}
 
+	// Decode column definitions to know column names and types
+	var colDefs []models.ColumnDef
+	if err := json.Unmarshal(ds.Columns, &colDefs); err != nil || len(colDefs) == 0 {
+		// Fallback: return empty stats
+		return c.JSON(map[string]interface{}{})
+	}
+
 	stats := map[string]interface{}{}
-	// Fetch all rows for stats computation
-	var rows []map[string]interface{}
-	if err := h.db.Table(ds.DataTableName).Find(&rows).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch data"})
-	}
 
-	if len(rows) == 0 {
-		return c.JSON(stats)
-	}
+	for _, col := range colDefs {
+		safeCol := sanitizeIdentifier(col.Name)
+		quoted := fmt.Sprintf(`"%s"`, safeCol)
 
-	// Per-column stats
-	for col := range rows[0] {
-		colStat := computeColumnStat(col, rows)
-		stats[col] = colStat
+		colStat := map[string]interface{}{
+			"totalCount": ds.RowCount,
+		}
+
+		// Common stats for all types: null count, distinct count
+		type basicStats struct {
+			NullCount     int64 `gorm:"column:null_count"`
+			DistinctCount int64 `gorm:"column:distinct_count"`
+		}
+		var basic basicStats
+		h.db.Raw(fmt.Sprintf(
+			`SELECT COUNT(*) FILTER (WHERE %s IS NULL) AS null_count, COUNT(DISTINCT %s) AS distinct_count FROM "%s"`,
+			quoted, quoted, ds.DataTableName,
+		)).Scan(&basic)
+		colStat["nullCount"] = basic.NullCount
+		colStat["distinctCount"] = basic.DistinctCount
+
+		// Numeric-specific stats
+		if col.Type == "number" {
+			type numStats struct {
+				Min    *float64 `gorm:"column:min_val"`
+				Max    *float64 `gorm:"column:max_val"`
+				Avg    *float64 `gorm:"column:avg_val"`
+				Stddev *float64 `gorm:"column:stddev_val"`
+				Sum    *float64 `gorm:"column:sum_val"`
+			}
+			var ns numStats
+			h.db.Raw(fmt.Sprintf(
+				`SELECT MIN(%s::double precision) AS min_val, MAX(%s::double precision) AS max_val,
+				        AVG(%s::double precision) AS avg_val, STDDEV(%s::double precision) AS stddev_val,
+				        SUM(%s::double precision) AS sum_val FROM "%s"`,
+				quoted, quoted, quoted, quoted, quoted, ds.DataTableName,
+			)).Scan(&ns)
+			if ns.Min != nil {
+				colStat["min"] = *ns.Min
+			}
+			if ns.Max != nil {
+				colStat["max"] = *ns.Max
+			}
+			if ns.Avg != nil {
+				colStat["avg"] = *ns.Avg
+			}
+			if ns.Stddev != nil {
+				colStat["stddev"] = *ns.Stddev
+			}
+			if ns.Sum != nil {
+				colStat["sum"] = *ns.Sum
+			}
+		}
+
+		stats[col.Name] = colStat
 	}
 
 	return c.JSON(stats)
@@ -322,25 +385,34 @@ func parseCSV(r io.Reader) (headers []string, rows [][]string, err error) {
 	return
 }
 
-func parseExcel(r io.Reader) (headers []string, rows [][]string, err error) {
-	// Read all bytes for excelize
-	data, readErr := io.ReadAll(r)
-	if readErr != nil {
-		return nil, nil, fmt.Errorf("failed to read file: %w", readErr)
+// parseExcel parses an Excel file (.xlsx or .xls) from raw bytes.
+// BUG-01 fix: fully implemented using github.com/xuri/excelize/v2.
+func parseExcel(data []byte) (headers []string, rows [][]string, err error) {
+	f, err := excelize.OpenReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open Excel file: %w", err)
+	}
+	defer f.Close()
+
+	sheets := f.GetSheetList()
+	if len(sheets) == 0 {
+		return nil, nil, fmt.Errorf("Excel file has no sheets")
 	}
 
-	// Use a temp approach with bytes reader
-	import_excelize_note := "excelize requires file bytes" // documentation note
-	_ = import_excelize_note
+	allRows, err := f.GetRows(sheets[0])
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read Excel sheet '%s': %w", sheets[0], err)
+	}
 
-	// Simplified: parse Excel using bytes
-	// In production, use: github.com/qax-os/excelize/v2
-	// f, _ := excelize.OpenReader(bytes.NewReader(data))
-	// sheetName := f.GetSheetList()[0]
-	// allRows, _ := f.GetRows(sheetName)
-	_ = data
+	if len(allRows) == 0 {
+		return nil, nil, fmt.Errorf("Excel sheet is empty")
+	}
 
-	return nil, nil, fmt.Errorf("Excel parsing requires excelize: implement with f.GetRows()")
+	headers = allRows[0]
+	if len(allRows) > 1 {
+		rows = allRows[1:]
+	}
+	return headers, rows, nil
 }
 
 func detectColumnTypes(headers []string, rows [][]string) []models.ColumnDef {
@@ -434,11 +506,7 @@ func createDynamicTable(db *gorm.DB, tableName string, cols []models.ColumnDef) 
 		case "date":
 			pgType = "TIMESTAMPTZ"
 		}
-		nullable := ""
-		if !col.Nullable {
-			nullable = ""
-		}
-		sb.WriteString(fmt.Sprintf(`"%s" %s%s`, sanitizeIdentifier(col.Name), pgType, nullable))
+		sb.WriteString(fmt.Sprintf(`"%s" %s`, sanitizeIdentifier(col.Name), pgType))
 		if i < len(cols)-1 {
 			sb.WriteString(", ")
 		}
@@ -447,6 +515,8 @@ func createDynamicTable(db *gorm.DB, tableName string, cols []models.ColumnDef) 
 	return db.Exec(sb.String()).Error
 }
 
+// bulkInsertRows inserts rows in batches using PostgreSQL-native $N placeholders.
+// BUG-02 fix: replaced `?` with `$N` numbering required by the pq/pgx drivers.
 func bulkInsertRows(db *gorm.DB, tableName string, headers []string, rows [][]string) error {
 	if len(rows) == 0 {
 		return nil
@@ -457,6 +527,7 @@ func bulkInsertRows(db *gorm.DB, tableName string, headers []string, rows [][]st
 	for i, h := range headers {
 		cols[i] = `"` + sanitizeIdentifier(h) + `"`
 	}
+	colClause := strings.Join(cols, ", ")
 
 	batchSize := 500
 	for batchStart := 0; batchStart < len(rows); batchStart += batchSize {
@@ -467,18 +538,27 @@ func bulkInsertRows(db *gorm.DB, tableName string, headers []string, rows [][]st
 		batch := rows[batchStart:end]
 
 		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf(`INSERT INTO "%s" (%s) VALUES `, tableName, strings.Join(cols, ", ")))
+		sb.WriteString(fmt.Sprintf(`INSERT INTO "%s" (%s) VALUES `, tableName, colClause))
 
 		args := make([]interface{}, 0, len(batch)*len(headers))
+		paramIdx := 1 // PostgreSQL parameter counter: $1, $2, ...
+
 		for rowIdx, row := range batch {
 			sb.WriteString("(")
 			for colIdx := range headers {
 				if colIdx > 0 {
 					sb.WriteString(", ")
 				}
-				sb.WriteString("?")
+				// BUG-02 fix: use $N instead of ?
+				sb.WriteString(fmt.Sprintf("$%d", paramIdx))
+				paramIdx++
 				if colIdx < len(row) {
-					args = append(args, row[colIdx])
+					v := strings.TrimSpace(row[colIdx])
+					if v == "" {
+						args = append(args, nil)
+					} else {
+						args = append(args, v)
+					}
 				} else {
 					args = append(args, nil)
 				}
@@ -541,7 +621,6 @@ func computeColumnStat(col string, rows []map[string]interface{}) map[string]int
 		}
 		avg := sum / float64(len(numericVals))
 
-		// Standard deviation
 		variance := 0.0
 		for _, v := range numericVals {
 			diff := v - avg
@@ -559,11 +638,18 @@ func computeColumnStat(col string, rows []map[string]interface{}) map[string]int
 	return stat
 }
 
-func encodeColumns(cols []models.ColumnDef) []byte {
-	// JSON encode column definitions
-	parts := make([]string, len(cols))
-	for i, c := range cols {
-		parts[i] = fmt.Sprintf(`{"name":%q,"type":%q,"nullable":%t}`, c.Name, c.Type, c.Nullable)
+// encodeColumns serializes column definitions to JSON.
+// BUG-10 fix: uses encoding/json.Marshal instead of manual fmt.Sprintf
+// to properly handle special characters in column names.
+func encodeColumns(cols []models.ColumnDef) ([]byte, error) {
+	type exportDef struct {
+		Name     string `json:"name"`
+		Type     string `json:"type"`
+		Nullable bool   `json:"nullable"`
 	}
-	return []byte("[" + strings.Join(parts, ",") + "]")
+	out := make([]exportDef, len(cols))
+	for i, c := range cols {
+		out[i] = exportDef{Name: c.Name, Type: c.Type, Nullable: c.Nullable}
+	}
+	return json.Marshal(out)
 }

@@ -51,9 +51,14 @@ func (h *Hub) Run() {
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if clients, ok := h.clients[client.UserID]; ok {
-				delete(clients, client)
-				if len(clients) == 0 {
-					delete(h.clients, client.UserID)
+				if _, exists := clients[client]; exists {
+					// FIX PERF-01: Close the send channel so writePump exits cleanly,
+					// preventing goroutine leaks on client disconnect.
+					close(client.send)
+					delete(clients, client)
+					if len(clients) == 0 {
+						delete(h.clients, client.UserID)
+					}
 				}
 			}
 			h.mu.Unlock()
@@ -67,7 +72,8 @@ func (h *Hub) Run() {
 					select {
 					case client.send <- event:
 					default:
-						// Client send buffer full; drop and unregister
+						// Client send buffer full — schedule unregister in separate goroutine
+						// to avoid deadlock (we hold RLock, unregister path needs WLock).
 						log.Warn().Str("userId", event.UserID).Msg("WebSocket client send buffer full, disconnecting")
 						go func(cl *Client) { h.unregister <- cl }(client)
 					}
@@ -88,14 +94,22 @@ func (h *Hub) SendToUser(userID string, event Event) {
 	}
 }
 
-// Broadcast sends an event to ALL connected clients (admin broadcast).
+// Broadcast sends an event to ALL connected clients (admin use).
+// Snapshots user IDs under RLock first, then releases lock before
+// calling SendToUser to prevent deadlock when broadcast channel is full.
 func (h *Hub) Broadcast(eventType string, payload interface{}) {
 	data, _ := json.Marshal(payload)
+
 	h.mu.RLock()
+	userIDs := make([]string, 0, len(h.clients))
 	for userID := range h.clients {
-		h.SendToUser(userID, Event{Type: eventType, Payload: json.RawMessage(data)})
+		userIDs = append(userIDs, userID)
 	}
 	h.mu.RUnlock()
+
+	for _, userID := range userIDs {
+		h.SendToUser(userID, Event{Type: eventType, Payload: json.RawMessage(data)})
+	}
 }
 
 // Register adds a client to the hub.
