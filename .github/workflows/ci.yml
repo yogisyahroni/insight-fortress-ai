@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    # Non-blocking until DB-in-CI config is fully stable
+    # Non-blocking until fully stable
     continue-on-error: true
 
     services:
@@ -115,7 +115,7 @@ jobs:
         working-directory: ./datalens-backend
         run: go mod download
 
-      # Single step — server stays alive, detailed log captured
+      # Single shell step — server stays alive throughout test
       - name: Build, start and smoke test
         working-directory: ./datalens-backend
         env:
@@ -133,45 +133,58 @@ jobs:
           AI_API_KEY: ""
           STATIC_DIR: ""
         run: |
+          # Build the server binary
           go build -o /tmp/datalens-server ./cmd/server/
+          echo "Binary built successfully"
 
-          # Start server, pipe output to log file for debugging
+          # Extra sleep to ensure postgres is fully ready for connections
+          # (pg_isready passes before the DB accepts client connections)
+          echo "Waiting 5s for postgres to fully accept connections..."
+          sleep 5
+
+          # Start server, capturing all output to log file
           /tmp/datalens-server > /tmp/server.log 2>&1 &
           SERVER_PID=$!
           echo "Server started (PID=$SERVER_PID)"
 
-          # Wait up to 30s for readiness
+          # Wait up to 90s for server to bind and respond
           READY=false
-          for i in $(seq 1 60); do
+          for i in $(seq 1 90); do
             HTTP=$(curl -o /dev/null -s -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "000")
             if [ "$HTTP" != "000" ]; then
               echo "Server ready after ${i}s (HTTP $HTTP)"
               READY=true
               break
             fi
+            # Print log every 15s so we can see DB retry progress
+            if [ $(( i % 15 )) -eq 0 ]; then
+              echo "--- Server log at ${i}s ---"
+              cat /tmp/server.log 2>/dev/null || true
+              echo "---"
+            fi
             sleep 1
           done
 
           if [ "$READY" = "false" ]; then
-            echo "ERROR: Server did not start. Last 50 lines of log:"
-            tail -50 /tmp/server.log || true
+            echo "ERROR: Server did not start within 90s. Final log:"
+            cat /tmp/server.log || true
             kill "$SERVER_PID" 2>/dev/null || true
             exit 1
           fi
 
-          echo "--- Server log at readiness ---"
+          echo "=== Server log at readiness ==="
           cat /tmp/server.log || true
-          echo "-------------------------------"
+          echo "=== End server log ==="
 
-          # Run smoke tests (server alive in same shell)
+          # Run smoke tests — server is alive in this same shell
           cd ..
           chmod +x ./datalens-backend/scripts/smoke_test.sh
           ./datalens-backend/scripts/smoke_test.sh http://localhost:8080/api/v1
           SMOKE_STATUS=$?
 
-          echo "--- Server log at end ---"
+          echo "=== Final server log ==="
           cat /tmp/server.log || true
-          echo "-------------------------------"
+          echo "=== End ==="
 
           kill "$SERVER_PID" 2>/dev/null || true
           exit $SMOKE_STATUS
