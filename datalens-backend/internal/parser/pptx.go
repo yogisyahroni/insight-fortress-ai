@@ -81,7 +81,7 @@ type pptPresentation struct {
 	SldIdLst struct {
 		SldId []struct {
 			ID  int    `xml:"id,attr"`
-			RID string `xml:"id,attr"` // relationship id
+			RID string `xml:"r id,attr"` // relationship id (r:id in OOXML)
 		} `xml:"sldId"`
 	} `xml:"sldIdLst"`
 }
