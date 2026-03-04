@@ -62,6 +62,8 @@ const App = () => (
             <Route path="/query" element={<QueryEditor />} />
             <Route path="/etl" element={<ETLPipeline />} />
             <Route path="/modeling" element={<DataModeling />} />
+            <Route path="/db-diagram" element={<DBDiagram />} />
+            <Route path="/visual-etl" element={<VisualETL />} />
             <Route path="/calculated-fields" element={<CalculatedFields />} />
             <Route path="/drill-down" element={<DrillDown />} />
             <Route path="/formatting" element={<ConditionalFormatting />} />
