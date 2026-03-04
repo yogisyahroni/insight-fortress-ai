@@ -86,6 +86,8 @@ func (h *DashboardHandler) GetDashboard(c *fiber.Ctx) error {
 
 // UpdateDashboard updates dashboard name/widgets/visibility.
 // PUT /api/v1/dashboards/:id
+// PERF-03 fix: Only whitelisted fields can be updated — prevents mass assignment attacks
+// (e.g. user sending {"user_id": "other-id"} to hijack another user's dashboard).
 func (h *DashboardHandler) UpdateDashboard(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
 	var dash models.Dashboard
@@ -93,12 +95,34 @@ func (h *DashboardHandler) UpdateDashboard(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Dashboard not found"})
 	}
 
-	var body map[string]interface{}
-	if err := c.BodyParser(&body); err != nil {
+	// PERF-03 fix: Use explicit DTO struct, never pass raw request body to the ORM.
+	// Only allow updating name, widgets, and isPublic.
+	var req struct {
+		Name     *string     `json:"name"`
+		Widgets  interface{} `json:"widgets"`
+		IsPublic *bool       `json:"isPublic"`
+	}
+	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
-	body["updated_at"] = time.Now()
-	if err := h.db.Model(&dash).Updates(body).Error; err != nil {
+
+	updates := map[string]interface{}{
+		"updated_at": time.Now(),
+	}
+	if req.Name != nil {
+		if *req.Name == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name cannot be empty"})
+		}
+		updates["name"] = *req.Name
+	}
+	if req.Widgets != nil {
+		updates["widgets"] = req.Widgets
+	}
+	if req.IsPublic != nil {
+		updates["is_public"] = *req.IsPublic
+	}
+
+	if err := h.db.Model(&dash).Updates(updates).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update dashboard"})
 	}
 	return c.JSON(dash)
@@ -109,8 +133,14 @@ func (h *DashboardHandler) UpdateDashboard(c *fiber.Ctx) error {
 func (h *DashboardHandler) DeleteDashboard(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
 	now := time.Now()
-	if err := h.db.Model(&models.Dashboard{}).Where("id = ? AND user_id = ? AND deleted_at IS NULL", c.Params("id"), userID).Update("deleted_at", now).Error; err != nil {
+	result := h.db.Model(&models.Dashboard{}).
+		Where("id = ? AND user_id = ? AND deleted_at IS NULL", c.Params("id"), userID).
+		Update("deleted_at", now)
+	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Delete failed"})
+	}
+	if result.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Dashboard not found"})
 	}
 	return c.Status(fiber.StatusNoContent).Send(nil)
 }
@@ -134,7 +164,10 @@ func (h *DashboardHandler) GenerateEmbedToken(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save embed token"})
 	}
 
-	return c.JSON(fiber.Map{"embedToken": token})
+	return c.JSON(fiber.Map{
+		"embedToken": token,
+		"embedUrl":   "/embed/" + token,
+	})
 }
 
 // GetEmbed returns a dashboard via its public embed token (no auth required).

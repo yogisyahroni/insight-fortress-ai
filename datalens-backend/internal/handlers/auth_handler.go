@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -339,8 +340,15 @@ func (h *AuthHandler) storeRefreshToken(userID, refreshToken string) error {
 	return h.redis.Set(ctx, key, "1", h.refreshTTL).Err()
 }
 
+// isValidEmail validates email format using net/mail.ParseAddress (RFC 5322).
+// BUG-06 fix: replaces weak contains('@') + contains('.') check that accepted
+// malformed addresses like 'a@b.' or '@.com' as valid.
 func isValidEmail(email string) bool {
-	return strings.Contains(email, "@") && strings.Contains(email, ".")
+	if email == "" {
+		return false
+	}
+	_, err := mail.ParseAddress(email)
+	return err == nil
 }
 
 func min(a, b int) int {

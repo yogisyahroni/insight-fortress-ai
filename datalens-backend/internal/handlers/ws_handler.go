@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"datalens/internal/middleware"
 	"datalens/internal/realtime"
 
@@ -54,20 +56,28 @@ func (h *WSHandler) HandleConnection() fiber.Handler {
 }
 
 // WSAuthMiddleware extracts the JWT token from query param for WebSocket connections.
-// Used because browsers cannot set Authorization headers in WS connections.
+// Browsers cannot set Authorization headers in WS connections, so token is passed via ?token=.
+// BUG-05 fix: fallback correctly reads from Authorization header instead of incorrectly
+// calling GetUserID() which would always return "" at this point in the middleware chain.
 func WSAuthMiddleware(secret string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		// Primary: token from query param (browser WebSocket connections)
 		token := c.Query("token")
+
 		if token == "" {
-			// Fall back to header (for tools like Postman)
-			token = middleware.GetUserID(c)
-			if token != "" {
-				return c.Next()
+			// BUG-05 fix: fallback to Authorization header (for Postman/curl/API tools)
+			// Do NOT call GetUserID(c) here — locals are not yet populated.
+			authHeader := c.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimPrefix(authHeader, "Bearer ")
 			}
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "token required"})
 		}
 
-		// Reuse the auth middleware logic
+		if token == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "token required (use ?token= query param or Authorization header)"})
+		}
+
+		// Inject token into Authorization header and run the standard JWT middleware
 		c.Request().Header.Set("Authorization", "Bearer "+token)
 		return middleware.AuthRequired(secret)(c)
 	}

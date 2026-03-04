@@ -61,20 +61,43 @@ func (h *KPIHandler) CreateKPI(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(kpi)
 }
 
-// UpdateKPI updates a KPI.
+// UpdateKPI updates a KPI — uses explicit DTO to prevent mass assignment.
 func (h *KPIHandler) UpdateKPI(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
 	var kpi models.KPI
 	if err := h.db.Where("id = ? AND user_id = ?", c.Params("id"), userID).First(&kpi).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "KPI not found"})
 	}
-	var body map[string]interface{}
-	if err := c.BodyParser(&body); err != nil {
+
+	var req struct {
+		Name        *string  `json:"name"`
+		ColumnName  *string  `json:"columnName"`
+		Aggregation *string  `json:"aggregation"`
+		Target      *float64 `json:"target"`
+		Unit        *string  `json:"unit"`
+	}
+	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid body"})
 	}
-	delete(body, "id")
-	delete(body, "user_id")
-	if err := h.db.Model(&kpi).Updates(body).Error; err != nil {
+
+	updates := map[string]interface{}{}
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.ColumnName != nil {
+		updates["column_name"] = *req.ColumnName
+	}
+	if req.Aggregation != nil {
+		updates["aggregation"] = *req.Aggregation
+	}
+	if req.Target != nil {
+		updates["target"] = *req.Target
+	}
+	if req.Unit != nil {
+		updates["unit"] = *req.Unit
+	}
+
+	if err := h.db.Model(&kpi).Updates(updates).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Update failed"})
 	}
 	return c.JSON(kpi)
@@ -148,35 +171,73 @@ func (h *AlertHandler) CreateAlert(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(alert)
 }
 
-// UpdateAlert updates alert configuration.
+// UpdateAlert updates alert configuration with whitelisted fields.
+// BUG-04 fix: properly handles BodyParser errors and DB update errors.
 func (h *AlertHandler) UpdateAlert(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
 	var alert models.DataAlert
 	if err := h.db.Where("id = ? AND user_id = ?", c.Params("id"), userID).First(&alert).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Alert not found"})
 	}
-	var body map[string]interface{}
-	_ = c.BodyParser(&body)
-	delete(body, "id")
-	delete(body, "user_id")
-	h.db.Model(&alert).Updates(body)
+
+	// BUG-04 fix: check BodyParser error (was silently ignored with _=)
+	var req struct {
+		Name       *string  `json:"name"`
+		ColumnName *string  `json:"columnName"`
+		Condition  *string  `json:"condition"`
+		Threshold  *float64 `json:"threshold"`
+		NotifyVia  *string  `json:"notifyVia"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid body"})
+	}
+
+	updates := map[string]interface{}{}
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.ColumnName != nil {
+		updates["column_name"] = *req.ColumnName
+	}
+	if req.Condition != nil {
+		updates["condition"] = *req.Condition
+	}
+	if req.Threshold != nil {
+		updates["threshold"] = *req.Threshold
+	}
+	if req.NotifyVia != nil {
+		updates["notify_via"] = *req.NotifyVia
+	}
+
+	// BUG-04 fix: check DB error (was silently ignored before)
+	if err := h.db.Model(&alert).Updates(updates).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Update failed"})
+	}
 	return c.JSON(alert)
 }
 
 // DeleteAlert deletes an alert.
+// BUG-04 fix: error is now checked and returned to client.
 func (h *AlertHandler) DeleteAlert(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
-	h.db.Where("id = ? AND user_id = ?", c.Params("id"), userID).Delete(&models.DataAlert{})
+	// BUG-04 fix: check Delete error (was silently ignored before)
+	if err := h.db.Where("id = ? AND user_id = ?", c.Params("id"), userID).Delete(&models.DataAlert{}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Delete failed"})
+	}
 	return c.Status(fiber.StatusNoContent).Send(nil)
 }
 
 // ToggleAlert enables or disables an alert.
+// BUG-04 fix: DB update error is now checked.
 func (h *AlertHandler) ToggleAlert(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
 	var alert models.DataAlert
 	if err := h.db.Where("id = ? AND user_id = ?", c.Params("id"), userID).First(&alert).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Alert not found"})
 	}
-	h.db.Model(&alert).Update("enabled", !alert.Enabled)
-	return c.JSON(fiber.Map{"enabled": !alert.Enabled})
+	newEnabled := !alert.Enabled
+	if err := h.db.Model(&alert).Update("enabled", newEnabled).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Toggle failed"})
+	}
+	return c.JSON(fiber.Map{"enabled": newEnabled})
 }
