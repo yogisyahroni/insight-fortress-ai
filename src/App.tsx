@@ -25,6 +25,7 @@ import DataModeling from "./pages/DataModeling";
 import DBDiagram from "./pages/DBDiagram";
 import VisualETL from "./pages/VisualETL";
 import CalculatedFields from "./pages/CalculatedFields";
+import DataProfiling from "./pages/DataProfiling";
 import Bookmarks from "./pages/Bookmarks";
 import ConditionalFormatting from "./pages/ConditionalFormatting";
 import DrillDown from "./pages/DrillDown";
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="/db-diagram" element={<DBDiagram />} />
             <Route path="/visual-etl" element={<VisualETL />} />
             <Route path="/calculated-fields" element={<CalculatedFields />} />
+            <Route path="/data-profiling" element={<DataProfiling />} />
             <Route path="/drill-down" element={<DrillDown />} />
             <Route path="/formatting" element={<ConditionalFormatting />} />
             <Route path="/bookmarks" element={<Bookmarks />} />

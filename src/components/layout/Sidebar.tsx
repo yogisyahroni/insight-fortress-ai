@@ -7,6 +7,7 @@ import {
   Search, LayoutGrid, PaintBucket, MessageSquare, BookOpen, Target,
   Table2, Bell, Network, Calculator, Bookmark, Paintbrush, Layers,
   Globe, Link2, StickyNote, Variable, Clock, ShieldCheck, Code, FileDown, RefreshCw,
+  Activity, Workflow,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +27,7 @@ const menuItems = [
   { icon: Database, label: 'DB Diagram', path: '/db-diagram' },
   { icon: GitBranch, label: 'Visual ETL', path: '/visual-etl' },
   { icon: Calculator, label: 'Calculated Fields', path: '/calculated-fields' },
+  { icon: Activity, label: 'Data Profiling', path: '/data-profiling' },
   { icon: Layers, label: 'Drill-Down', path: '/drill-down' },
   { icon: Paintbrush, label: 'Formatting', path: '/formatting' },
   { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
