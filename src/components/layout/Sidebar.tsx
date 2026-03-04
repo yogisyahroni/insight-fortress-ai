@@ -7,51 +7,111 @@ import {
   Search, LayoutGrid, PaintBucket, MessageSquare, BookOpen, Target,
   Table2, Bell, Network, Calculator, Bookmark, Paintbrush, Layers,
   Globe, Link2, StickyNote, Variable, Clock, ShieldCheck, Code, FileDown, RefreshCw,
-  Activity, Workflow,
+  Activity, Workflow, PlugZap, FolderInput, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: Upload, label: 'Upload Data', path: '/upload' },
-  { icon: Database, label: 'Datasets', path: '/datasets' },
-  { icon: Search, label: 'Data Explorer', path: '/explorer' },
-  { icon: MessageSquare, label: 'Ask Data', path: '/ask-data' },
-  { icon: Table2, label: 'Pivot Table', path: '/pivot' },
-  { icon: PaintBucket, label: 'Chart Builder', path: '/chart-builder' },
-  { icon: LayoutGrid, label: 'Dashboard Builder', path: '/dashboard-builder' },
-  { icon: Target, label: 'KPI Scorecard', path: '/kpi' },
-  { icon: Code2, label: 'SQL Query', path: '/query' },
-  { icon: GitBranch, label: 'ETL Pipeline', path: '/etl' },
-  { icon: Network, label: 'Data Modeling', path: '/modeling' },
-  { icon: Database, label: 'DB Diagram', path: '/db-diagram' },
-  { icon: GitBranch, label: 'Visual ETL', path: '/visual-etl' },
-  { icon: Calculator, label: 'Calculated Fields', path: '/calculated-fields' },
-  { icon: Activity, label: 'Data Profiling', path: '/data-profiling' },
-  { icon: Layers, label: 'Drill-Down', path: '/drill-down' },
-  { icon: Paintbrush, label: 'Formatting', path: '/formatting' },
-  { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
-  { icon: Globe, label: 'Geo Visualization', path: '/geo' },
-  { icon: Link2, label: 'Cross-Filter', path: '/cross-filter' },
-  { icon: StickyNote, label: 'Annotations', path: '/annotations' },
-  { icon: Variable, label: 'Parameters', path: '/parameters' },
-  { icon: Clock, label: 'Scheduled Reports', path: '/scheduled-reports' },
-  { icon: ShieldCheck, label: 'Row-Level Security', path: '/rls' },
-  { icon: Code, label: 'Embed & Share', path: '/embed' },
-  { icon: FileDown, label: 'Export', path: '/export' },
-  { icon: RefreshCw, label: 'Data Refresh', path: '/data-refresh' },
-  { icon: BookOpen, label: 'Data Stories', path: '/stories' },
-  { icon: LayoutGrid, label: 'Report Templates', path: '/report-templates' },
-  { icon: Sparkles, label: 'AI Reports', path: '/ai-reports' },
-  { icon: FileText, label: 'Reports', path: '/reports' },
-  { icon: Bell, label: 'Alerts', path: '/alerts' },
-  { icon: Shield, label: 'Data Privacy', path: '/privacy' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
+// ─── Menu structure with groups ───────────────────────────────────────────────
+interface MenuItem { icon: React.ElementType; label: string; path: string; badge?: string }
+interface MenuGroup { title: string; items: MenuItem[] }
+
+const menuGroups: MenuGroup[] = [
+  {
+    title: 'Overview',
+    items: [
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    ],
+  },
+  {
+    title: 'Data Sources',
+    items: [
+      { icon: PlugZap, label: 'External Databases', path: '/connections', badge: 'NEW' },
+      { icon: FolderInput, label: 'Import File', path: '/import' },
+      { icon: Upload, label: 'Upload Data', path: '/upload' },
+      { icon: Database, label: 'Datasets', path: '/datasets' },
+      { icon: RefreshCw, label: 'Data Refresh', path: '/data-refresh' },
+    ],
+  },
+  {
+    title: 'Analysis',
+    items: [
+      { icon: Search, label: 'Data Explorer', path: '/explorer' },
+      { icon: MessageSquare, label: 'Ask Data (AI)', path: '/ask-data' },
+      { icon: Table2, label: 'Pivot Table', path: '/pivot' },
+      { icon: Code2, label: 'SQL Query', path: '/query' },
+      { icon: Activity, label: 'Data Profiling', path: '/data-profiling' },
+      { icon: Target, label: 'KPI Scorecard', path: '/kpi' },
+    ],
+  },
+  {
+    title: 'Visualize',
+    items: [
+      { icon: PaintBucket, label: 'Chart Builder', path: '/chart-builder' },
+      { icon: LayoutGrid, label: 'Dashboard Builder', path: '/dashboard-builder' },
+      { icon: Globe, label: 'Geo Visualization', path: '/geo' },
+    ],
+  },
+  {
+    title: 'Transform',
+    items: [
+      { icon: GitBranch, label: 'ETL Pipeline', path: '/etl' },
+      { icon: Workflow, label: 'Visual ETL', path: '/visual-etl' },
+      { icon: Network, label: 'Data Modeling', path: '/modeling' },
+      { icon: Database, label: 'DB Diagram', path: '/db-diagram' },
+      { icon: Calculator, label: 'Calculated Fields', path: '/calculated-fields' },
+    ],
+  },
+  {
+    title: 'Reports',
+    items: [
+      { icon: FileText, label: 'Reports', path: '/reports' },
+      { icon: Sparkles, label: 'AI Reports', path: '/ai-reports' },
+      { icon: BookOpen, label: 'Data Stories', path: '/stories' },
+      { icon: LayoutGrid, label: 'Report Templates', path: '/report-templates' },
+      { icon: Clock, label: 'Scheduled Reports', path: '/scheduled-reports' },
+      { icon: FileDown, label: 'Export / PDF', path: '/export' },
+    ],
+  },
+  {
+    title: 'Features',
+    items: [
+      { icon: Bell, label: 'Alerts', path: '/alerts' },
+      { icon: Layers, label: 'Drill-Down', path: '/drill-down' },
+      { icon: Link2, label: 'Cross-Filter', path: '/cross-filter' },
+      { icon: Paintbrush, label: 'Formatting', path: '/formatting' },
+      { icon: StickyNote, label: 'Annotations', path: '/annotations' },
+      { icon: Variable, label: 'Parameters', path: '/parameters' },
+      { icon: Code, label: 'Embed & Share', path: '/embed' },
+      { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
+    ],
+  },
+  {
+    title: 'Security',
+    items: [
+      { icon: ShieldCheck, label: 'Row-Level Security', path: '/rls' },
+      { icon: Shield, label: 'Data Privacy', path: '/privacy' },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { icon: Settings, label: 'Settings', path: '/settings' },
+    ],
+  },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const location = useLocation();
+
+  const toggleGroup = (title: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      next.has(title) ? next.delete(title) : next.add(title);
+      return next;
+    });
+  };
 
   return (
     <motion.aside
@@ -61,7 +121,7 @@ export function Sidebar() {
       className="fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border z-50 flex flex-col"
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border shrink-0">
         <AnimatePresence mode="wait">
           {!collapsed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-3">
@@ -83,47 +143,100 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-        {menuItems.map((item) => {
-          const isActive = location.pathname === item.path;
+      <nav className="flex-1 py-3 px-2 overflow-y-auto space-y-0.5 scrollbar-thin">
+        {menuGroups.map((group) => {
+          const isGroupCollapsed = !collapsed && collapsedGroups.has(group.title);
+          const hasActive = group.items.some(item =>
+            item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
+          );
+
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative',
-                isActive
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            <div key={group.title} className="mb-1">
+              {/* Group header — only show when sidebar expanded */}
+              {!collapsed && (
+                <button
+                  onClick={() => toggleGroup(group.title)}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors',
+                    hasActive
+                      ? 'text-primary/80'
+                      : 'text-muted-foreground/60 hover:text-muted-foreground'
+                  )}
+                >
+                  <span>{group.title}</span>
+                  <ChevronDown className={cn('w-3 h-3 transition-transform', isGroupCollapsed && '-rotate-90')} />
+                </button>
               )}
-            >
-              {isActive && (
-                <motion.div layoutId="activeIndicator" className="absolute left-0 w-1 h-6 bg-primary rounded-r-full" transition={{ duration: 0.2 }} />
-              )}
-              <item.icon className={cn('w-4 h-4 flex-shrink-0', isActive && 'text-primary')} />
-              <AnimatePresence mode="wait">
-                {!collapsed && (
-                  <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-                    className="font-medium whitespace-nowrap text-sm">
-                    {item.label}
-                  </motion.span>
+
+              {/* Items */}
+              <AnimatePresence initial={false}>
+                {!isGroupCollapsed && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden space-y-0.5"
+                  >
+                    {group.items.map((item) => {
+                      const isActive = item.path === '/'
+                        ? location.pathname === '/'
+                        : location.pathname.startsWith(item.path);
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          className={cn(
+                            'flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative',
+                            isActive
+                              ? 'bg-primary/10 text-primary'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          )}
+                          title={collapsed ? item.label : undefined}
+                        >
+                          {isActive && (
+                            <motion.div layoutId="activeIndicator" className="absolute left-0 w-1 h-5 bg-primary rounded-r-full" transition={{ duration: 0.2 }} />
+                          )}
+                          <item.icon className={cn('w-4 h-4 flex-shrink-0', isActive && 'text-primary')} />
+                          <AnimatePresence mode="wait">
+                            {!collapsed && (
+                              <motion.span
+                                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
+                                className="font-medium whitespace-nowrap text-sm flex-1"
+                              >
+                                {item.label}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                          {!collapsed && item.badge && (
+                            <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground leading-none">
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </motion.div>
                 )}
               </AnimatePresence>
-            </Link>
+            </div>
           );
         })}
       </nav>
 
-      {/* Collapse Button */}
+      {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors"
+        className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors z-10"
       >
-        {collapsed ? <ChevronRight className="w-4 h-4 text-muted-foreground" /> : <ChevronLeft className="w-4 h-4 text-muted-foreground" />}
+        {collapsed
+          ? <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          : <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+        }
       </button>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border shrink-0">
         <AnimatePresence mode="wait">
           {!collapsed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-3">
