@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Upload, GitBranch, FileText, Shield, Settings,
-  ChevronLeft, ChevronRight, Database, Sparkles, BarChart3, Code2,
+  ChevronLeft, ChevronRight, Database, Sparkles, Code2,
   Search, LayoutGrid, PaintBucket, MessageSquare, BookOpen, Target,
   Table2, Bell, Network, Calculator, Bookmark, Paintbrush, Layers,
   Globe, Link2, StickyNote, Variable, Clock, ShieldCheck, Code, FileDown, RefreshCw,
@@ -125,8 +125,17 @@ export function Sidebar() {
         <AnimatePresence mode="wait">
           {!collapsed && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
-                <BarChart3 className="w-6 h-6 text-primary-foreground" />
+              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow shrink-0">
+                {/* DataLens SVG logo — lens + mini chart */}
+                <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-7 h-7">
+                  <ellipse cx="20" cy="20" rx="17" ry="11" fill="white" fillOpacity="0.18" />
+                  <circle cx="20" cy="20" r="7" fill="white" fillOpacity="0.15" />
+                  <rect x="16" y="22" width="2" height="3" rx="0.5" fill="white" fillOpacity="0.7" />
+                  <rect x="19.5" y="19.5" width="2" height="5.5" rx="0.5" fill="white" fillOpacity="0.9" />
+                  <rect x="23" y="17.5" width="2" height="7.5" rx="0.5" fill="white" />
+                  <path d="M3 20 Q11.5 9 20 9 Q28.5 9 37 20 Q28.5 31 20 31 Q11.5 31 3 20 Z"
+                    fill="none" stroke="white" strokeWidth="1" strokeOpacity="0.3" />
+                </svg>
               </div>
               <div>
                 <h1 className="font-bold text-foreground">DataLens</h1>
@@ -137,7 +146,15 @@ export function Sidebar() {
         </AnimatePresence>
         {collapsed && (
           <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow mx-auto">
-            <BarChart3 className="w-6 h-6 text-primary-foreground" />
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-7 h-7">
+              <ellipse cx="20" cy="20" rx="17" ry="11" fill="white" fillOpacity="0.18" />
+              <circle cx="20" cy="20" r="7" fill="white" fillOpacity="0.15" />
+              <rect x="16" y="22" width="2" height="3" rx="0.5" fill="white" fillOpacity="0.7" />
+              <rect x="19.5" y="19.5" width="2" height="5.5" rx="0.5" fill="white" fillOpacity="0.9" />
+              <rect x="23" y="17.5" width="2" height="7.5" rx="0.5" fill="white" />
+              <path d="M3 20 Q11.5 9 20 9 Q28.5 9 37 20 Q28.5 31 20 31 Q11.5 31 3 20 Z"
+                fill="none" stroke="white" strokeWidth="1" strokeOpacity="0.3" />
+            </svg>
           </div>
         )}
       </div>
