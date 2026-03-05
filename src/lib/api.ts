@@ -762,3 +762,57 @@ export const calcFieldApi = {
     delete: (id: string) => api.delete(`/calc-fields/${id}`),
 };
 
+// ── DrillConfig API (BUG-M2) ─────────────────────────────────────────────────
+export interface DrillConfig {
+    id: string;
+    userId: string;
+    datasetId: string;
+    hierarchy: string[];
+    metricCol: string;
+    aggFn: 'count' | 'sum' | 'avg';
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface DrillConfigSave {
+    datasetId: string;
+    hierarchy: string[];
+    metricCol: string;
+    aggFn: 'count' | 'sum' | 'avg';
+}
+
+export const drillConfigApi = {
+    list: (datasetId?: string) => api.get<{ data: DrillConfig[] }>('/drill-configs', { params: datasetId ? { datasetId } : {} }),
+    save: (data: DrillConfigSave) => api.post<DrillConfig>('/drill-configs', data),
+    delete: (id: string) => api.delete(`/drill-configs/${id}`),
+};
+
+// ── EmbedToken API (BUG-M5) ──────────────────────────────────────────────────
+export interface EmbedToken {
+    id: string;
+    userId: string;
+    resourceId: string;
+    resourceType: 'dashboard' | 'chart';
+    showToolbar: boolean;
+    width: number;
+    height: number;
+    expiresAt: string | null;
+    accessCount: number;
+    revoked: boolean;
+    createdAt: string;
+}
+
+export interface EmbedTokenGenerate {
+    resourceId: string;
+    resourceType: 'dashboard' | 'chart';
+    showToolbar: boolean;
+    width: number;
+    height: number;
+    expireDays?: number; // undefined = no expiry
+}
+
+export const embedApi = {
+    generate: (data: EmbedTokenGenerate) => api.post<EmbedToken>('/embed-tokens', data),
+    list: () => api.get<{ data: EmbedToken[] }>('/embed-tokens'),
+    revoke: (id: string) => api.delete(`/embed-tokens/${id}`),
+};

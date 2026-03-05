@@ -119,3 +119,34 @@ type FormatRule struct {
 }
 
 func (FormatRule) TableName() string { return "format_rules" }
+
+// DrillConfig stores the drill-down hierarchy configuration for a dataset (BUG-M2).
+type DrillConfig struct {
+	ID        string          `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID    string          `json:"userId" gorm:"type:uuid;not null;index"`
+	DatasetID string          `json:"datasetId" gorm:"type:uuid;not null;index"`
+	Hierarchy json.RawMessage `json:"hierarchy" gorm:"type:jsonb;default:'[]'"` // ["col1","col2","col3"]
+	MetricCol string          `json:"metricCol" gorm:"size:100"`
+	AggFn     string          `json:"aggFn" gorm:"size:20;default:'count'"` // count, sum, avg
+	CreatedAt time.Time       `json:"createdAt"`
+	UpdatedAt time.Time       `json:"updatedAt"`
+}
+
+func (DrillConfig) TableName() string { return "drill_configs" }
+
+// EmbedToken is a secure, revocable token for embedding dashboards/charts (BUG-M5).
+type EmbedToken struct {
+	ID           string     `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID       string     `json:"userId" gorm:"type:uuid;not null;index"`
+	ResourceID   string     `json:"resourceId" gorm:"type:uuid;not null"`
+	ResourceType string     `json:"resourceType" gorm:"size:20;not null"` // dashboard, chart
+	ShowToolbar  bool       `json:"showToolbar" gorm:"default:true"`
+	Width        int        `json:"width" gorm:"default:800"`
+	Height       int        `json:"height" gorm:"default:600"`
+	ExpiresAt    *time.Time `json:"expiresAt"`
+	AccessCount  int        `json:"accessCount" gorm:"default:0"`
+	Revoked      bool       `json:"revoked" gorm:"default:false"`
+	CreatedAt    time.Time  `json:"createdAt"`
+}
+
+func (EmbedToken) TableName() string { return "embed_tokens" }

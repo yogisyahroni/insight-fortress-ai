@@ -128,6 +128,9 @@ func main() {
 	rlsH := handlers.NewRLSHandler(db)
 	formatRuleH := handlers.NewFormatRuleHandler(db)
 	calcFieldH := handlers.NewCalcFieldHandler(db)
+	// P2 extras: drill-configs (BUG-M2) + embed tokens (BUG-M5)
+	drillConfigH := handlers.NewDrillConfigHandler(db)
+	embedH := handlers.NewEmbedHandler(db)
 
 	// --- Fiber App ---
 	app := fiber.New(fiber.Config{
@@ -363,6 +366,21 @@ func main() {
 	calcFields.Post("/", calcFieldH.CreateCalcField)
 	calcFields.Delete("/:id", calcFieldH.DeleteCalcField)
 
+	// BUG-M2: Drill-Down Config
+	drillConfigs := api.Group("/drill-configs")
+	drillConfigs.Get("/", drillConfigH.ListDrillConfigs)
+	drillConfigs.Post("/", drillConfigH.SaveDrillConfig)
+	drillConfigs.Delete("/:id", drillConfigH.DeleteDrillConfig)
+
+	// BUG-M5: Embed Tokens (authenticated management)
+	embedTokens := api.Group("/embed-tokens")
+	embedTokens.Get("/", embedH.ListEmbedTokens)
+	embedTokens.Post("/", embedH.GenerateEmbedToken)
+	embedTokens.Delete("/:id", embedH.RevokeEmbedToken)
+
+	// Public embed view endpoint — NO JWT middleware
+	app.Get("/api/v1/embed/view/:token", embedH.ViewEmbed)
+
 	// --- Static Frontend (React SPA) ---
 	// Serve the built frontend from ../dist/ if it exists.
 	// All non-API routes return index.html (SPA client-side routing).
@@ -478,7 +496,7 @@ func initRedis(cfg *config.Config) *redis.Client {
 
 // autoMigrate runs GORM auto-migration for all models.
 func autoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&models.User{},
 		&models.Dataset{},
 		&models.Dashboard{},
@@ -504,7 +522,29 @@ func autoMigrate(db *gorm.DB) error {
 		&models.UserAIConfig{}, // per-user encrypted AI config (security: API key stored server-side)
 		&models.Annotation{},   // BUG-H6: chart annotations persisted to DB
 		&models.FormatRule{},   // BUG-M4: conditional formatting rules persisted to DB
-	)
+		&models.DrillConfig{},  // BUG-M2: drill hierarchy configs
+		&models.EmbedToken{},   // BUG-M5: secure embed tokens
+	); err != nil {
+		return err
+	}
+	// Add composite indexes for performance (idempotent — IF NOT EXISTS)
+	indexes := []string{
+		"CREATE INDEX IF NOT EXISTS idx_format_rules_user_dataset ON format_rules(user_id, dataset_id)",
+		"CREATE INDEX IF NOT EXISTS idx_parameters_user_dashboard ON parameters(user_id, dashboard_id)",
+		"CREATE INDEX IF NOT EXISTS idx_rls_rules_user_dataset ON rls_rules(user_id, dataset_id)",
+		"CREATE INDEX IF NOT EXISTS idx_calc_fields_user_dataset ON calculated_fields(user_id, dataset_id)",
+		"CREATE INDEX IF NOT EXISTS idx_bookmarks_user_created ON bookmarks(user_id, created_at DESC)",
+		"CREATE INDEX IF NOT EXISTS idx_annotations_user_dataset ON annotations(user_id, dataset_id)",
+		"CREATE INDEX IF NOT EXISTS idx_drill_configs_user_dataset ON drill_configs(user_id, dataset_id)",
+		"CREATE INDEX IF NOT EXISTS idx_embed_tokens_user ON embed_tokens(user_id, created_at DESC)",
+	}
+	for _, sql := range indexes {
+		if err := db.Exec(sql).Error; err != nil {
+			// Non-fatal: log but continue
+			_ = err
+		}
+	}
+	return nil
 }
 
 // globalErrorHandler converts Fiber errors to JSON.

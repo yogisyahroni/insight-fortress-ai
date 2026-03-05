@@ -20,6 +20,8 @@ import {
     rlsApi,
     formatRuleApi,
     calcFieldApi,
+    drillConfigApi,
+    embedApi,
     type DataQueryParams,
     type KPICreate,
     type AlertCreate,
@@ -587,5 +589,64 @@ export function useDeleteCalcField() {
     return useMutation({
         mutationFn: (id: string) => calcFieldApi.delete(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['calc-fields'] }),
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P2 Hooks — DrillDown Config (BUG-M2)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useDrillConfig(datasetId?: string) {
+    return useQuery({
+        queryKey: ['drill-config', datasetId],
+        queryFn: () => drillConfigApi.list(datasetId).then((r) => r.data.data ?? []),
+        staleTime: 1000 * 60,
+        enabled: !!datasetId,
+    });
+}
+
+export function useSaveDrillConfig() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: Parameters<typeof drillConfigApi.save>[0]) =>
+            drillConfigApi.save(payload).then((r) => r.data),
+        onSuccess: (_data, vars) => {
+            qc.invalidateQueries({ queryKey: ['drill-config', vars.datasetId] });
+        },
+    });
+}
+
+export function useDeleteDrillConfig() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => drillConfigApi.delete(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['drill-config'] }),
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P2 Hooks — Embed Tokens (BUG-M5)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useEmbedTokens() {
+    return useQuery({
+        queryKey: ['embed-tokens'],
+        queryFn: () => embedApi.list().then((r) => r.data.data ?? []),
+        staleTime: 1000 * 30,
+    });
+}
+
+export function useGenerateEmbedToken() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: Parameters<typeof embedApi.generate>[0]) =>
+            embedApi.generate(payload).then((r) => r.data),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['embed-tokens'] }),
+    });
+}
+
+export function useRevokeEmbedToken() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => embedApi.revoke(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['embed-tokens'] }),
     });
 }
