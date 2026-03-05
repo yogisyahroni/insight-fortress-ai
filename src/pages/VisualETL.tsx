@@ -10,6 +10,7 @@ import '@xyflow/react/dist/style.css';
 import {
   Workflow, Play, Save, Trash2, Plus,
   Database, Filter, Shuffle, Layers, ArrowUpDown, Columns3, FileOutput, Code2, GitMerge, Eraser, Split,
+  Loader2,
 } from 'lucide-react';
 import { useDataStore } from '@/stores/dataStore';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import ETLNode from '@/components/etl/ETLNodes';
+import { useCreatePipeline, useRunPipeline } from '@/hooks/useApi';
 
 const nodeTypes = { etlNode: ETLNode };
 
@@ -51,6 +53,12 @@ function VisualETLInner() {
   });
   const [pipelineName, setPipelineName] = useState('Untitled Pipeline');
   const [isRunning, setIsRunning] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  // BUG-C3 FIX: track the backend pipeline id after save
+  const [savedPipelineId, setSavedPipelineId] = useState<string | null>(null);
+
+  const createPipelineMut = useCreatePipeline();
+  const runPipelineMut = useRunPipeline();
 
   const onConnect = useCallback((params: Connection) => {
     setEdges(eds => addEdge({
@@ -101,28 +109,72 @@ function VisualETLInner() {
     setEdges(eds => eds.filter(e => !e.selected));
   }, [setNodes, setEdges]);
 
-  // Simple pipeline execution simulation
+  // BUG-C3 FIX: Save pipeline definition to backend, then run it
+  const savePipeline = useCallback(async () => {
+    if (nodes.length === 0) {
+      toast({ title: 'No nodes', description: 'Add nodes to the pipeline first' });
+      return null;
+    }
+    // Find source node for sourceDatasetId
+    const sourceNode = nodes.find((n) => (n.data as any).nodeType === 'source');
+    const sourceDatasetId = (sourceNode?.data as any)?.config?.dataSetId ?? '';
+
+    // Build steps from non-source nodes
+    const steps = nodes
+      .filter((n) => (n.data as any).nodeType !== 'source')
+      .map((n) => ({ id: n.id, type: (n.data as any).nodeType, config: (n.data as any).config ?? {} }));
+
+    setIsSaving(true);
+    try {
+      const result = await createPipelineMut.mutateAsync({
+        name: pipelineName,
+        sourceDatasetId,
+        steps,
+      });
+      setSavedPipelineId(result.id);
+      toast({ title: 'Pipeline saved', description: `"${pipelineName}" saved to backend (ID: ${result.id.slice(0, 8)}…)` });
+      return result.id;
+    } catch {
+      toast({ title: 'Save failed', description: 'Could not save pipeline to backend', variant: 'destructive' });
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [nodes, pipelineName, createPipelineMut, toast]);
+
   const runPipeline = useCallback(async () => {
     if (nodes.length === 0) { toast({ title: 'No nodes', description: 'Add nodes to the pipeline first' }); return; }
     setIsRunning(true);
 
-    // Mark all as running then done sequentially
+    // Visual UX feedback: animate nodes as running
     for (const node of nodes) {
       setNodes(nds => nds.map(n => n.id === node.id ? { ...n, data: { ...n.data, status: 'running' } } : n));
-      await new Promise(r => setTimeout(r, 600));
-      const d = node.data as any;
-      // Generate preview from source dataset
-      let preview: any[] = [];
-      if (d.nodeType === 'source' && d.config?.dataSetId) {
-        const ds = dataSets.find(ds => ds.id === d.config.dataSetId);
-        preview = ds?.data?.slice(0, 5) || [];
-      }
-      setNodes(nds => nds.map(n => n.id === node.id ? { ...n, data: { ...n.data, status: 'done', preview } } : n));
     }
 
-    setIsRunning(false);
-    toast({ title: 'Pipeline executed', description: `${nodes.length} steps completed successfully` });
-  }, [nodes, setNodes, dataSets, toast]);
+    try {
+      // Step 1: ensure pipeline is saved to backend
+      let pipelineId = savedPipelineId;
+      if (!pipelineId) {
+        pipelineId = await savePipeline();
+        if (!pipelineId) { setIsRunning(false); return; }
+      }
+
+      // Step 2: POST /api/v1/pipelines/:id/run — actual server-side execution
+      const runResult = await runPipelineMut.mutateAsync(pipelineId);
+
+      // Mark all nodes as done after backend confirms run started
+      setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, status: 'done' } })));
+      toast({
+        title: '✅ Pipeline submitted',
+        description: `Run ID: ${runResult.runId?.slice(0, 8) ?? '—'}… — check backend for results`,
+      });
+    } catch {
+      setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, status: 'error' } })));
+      toast({ title: 'Pipeline run failed', description: 'Backend returned an error', variant: 'destructive' });
+    } finally {
+      setIsRunning(false);
+    }
+  }, [nodes, savedPipelineId, savePipeline, runPipelineMut, setNodes, toast]);
 
   return (
     <div className="space-y-4">
@@ -143,8 +195,13 @@ function VisualETLInner() {
           <div className="flex gap-2">
             <Input value={pipelineName} onChange={e => setPipelineName(e.target.value)} className="w-48 text-sm" />
             <Button variant="outline" size="sm" onClick={deleteSelected}><Trash2 className="w-4 h-4" /></Button>
-            <Button size="sm" onClick={runPipeline} disabled={isRunning}>
-              <Play className="w-4 h-4 mr-1" /> {isRunning ? 'Running...' : 'Run'}
+            <Button variant="outline" size="sm" onClick={savePipeline} disabled={isSaving || nodes.length === 0}>
+              {isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+              Save
+            </Button>
+            <Button size="sm" onClick={runPipeline} disabled={isRunning || nodes.length === 0}>
+              {isRunning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
+              {isRunning ? 'Running…' : 'Run'}
             </Button>
           </div>
         </div>

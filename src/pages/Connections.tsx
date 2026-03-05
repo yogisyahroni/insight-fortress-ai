@@ -6,8 +6,8 @@ import {
     Globe, Server
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { connectionApi, type DBConnection, type ConnectionCreate } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { api, connectionApi, type DBConnection, type ConnectionCreate } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 // ─── DB type icons & colours ──────────────────────────────────────────────────
 const DB_META: Record<string, { color: string; emoji: string }> = {
@@ -37,14 +37,15 @@ interface DBTypeInfo {
 }
 
 // ─── Hooks ───────────────────────────────────────────────────────────────────
+// ─── DB Types hook — uses api instance (token from memory, NOT localStorage) ───
 function useDBTypes() {
     return useQuery<DBTypeInfo[]>({
         queryKey: ['db-types'],
-        queryFn: () => connectionApi.list().then(() => // list just to reuse api instance
-            fetch(`${import.meta.env.VITE_API_URL}/connections/types`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-            }).then(r => r.json()).then(r => r.data as DBTypeInfo[])
-        ),
+        // BUG-C2 FIX: use api.get() with interceptor-injected Bearer token
+        // instead of raw fetch + localStorage.getItem('access_token')
+        queryFn: () =>
+            api.get<{ data: DBTypeInfo[] }>('/connections/types')
+                .then((r) => r.data.data),
         staleTime: Infinity,
     });
 }
@@ -59,6 +60,7 @@ function useConnections() {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ConnectionsPage() {
     const qc = useQueryClient();
+    const { toast } = useToast();
     const { data: conns = [], isLoading } = useConnections();
 
     const [showForm, setShowForm] = useState(false);
@@ -75,9 +77,9 @@ export default function ConnectionsPage() {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['connections'] });
             setShowForm(false);
-            toast.success('Connection saved!');
+            toast({ title: 'Connection saved!' });
         },
-        onError: (e: Error) => toast.error(e.message ?? 'Save failed'),
+        onError: (e: Error) => toast({ title: 'Save failed', description: e.message, variant: 'destructive' }),
     });
 
     // ── Delete mutation ──
@@ -85,7 +87,7 @@ export default function ConnectionsPage() {
         mutationFn: (id: string) => connectionApi.delete(id),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['connections'] });
-            toast.success('Connection removed');
+            toast({ title: 'Connection removed' });
         },
     });
 
@@ -95,12 +97,12 @@ export default function ConnectionsPage() {
         try {
             const res = await connectionApi.test(id);
             if (res.data.status === 'connected') {
-                toast.success(`Connected! Latency: ${res.data.latencyMs}ms`);
+                toast({ title: `Connected! Latency: ${res.data.latencyMs}ms` });
             } else {
-                toast.error('Connection failed — check credentials');
+                toast({ title: 'Connection failed', description: 'Check credentials', variant: 'destructive' });
             }
         } catch {
-            toast.error('Connection test failed');
+            toast({ title: 'Connection test failed', variant: 'destructive' });
         } finally {
             setTestingId(null);
         }
@@ -112,9 +114,9 @@ export default function ConnectionsPage() {
         try {
             await connectionApi.sync(id);
             qc.invalidateQueries({ queryKey: ['connections'] });
-            toast.success('Schema synced!');
+            toast({ title: 'Schema synced!' });
         } catch {
-            toast.error('Schema sync failed');
+            toast({ title: 'Schema sync failed', variant: 'destructive' });
         } finally {
             setSyncingId(null);
         }
@@ -126,7 +128,7 @@ export default function ConnectionsPage() {
             const res = await connectionApi.query(id, sqlDraft, 200);
             setQueryResult({ columns: res.data.columns, data: res.data.data, durationMs: res.data.rowCount });
         } catch {
-            toast.error('Query failed');
+            toast({ title: 'Query failed', variant: 'destructive' });
         }
     };
 
