@@ -109,7 +109,9 @@ func main() {
 	kpiH := handlers.NewKPIHandler(db)
 	alertH := handlers.NewAlertHandler(db)
 	cronH := handlers.NewCronHandler(db, hub)
-	aiH := handlers.NewAIHandler(db, cfg.AI)
+	encKey := cfg.Encryption.DBConnKey // reuse existing server-side encryption secret
+	aiH := handlers.NewAIHandler(db, cfg.AI, encKey)
+	settingsH := handlers.NewSettingsHandler(db, encKey)
 	wsH := handlers.NewWSHandler(hub)
 	chartH := handlers.NewChartHandler(db, hub)
 	exportH := handlers.NewExportHandler(db)
@@ -248,10 +250,16 @@ func main() {
 	cronAlias.Put("/:id", cronH.UpdateCronJob)
 	cronAlias.Delete("/:id", cronH.DeleteCronJob)
 
-	// AI routes
+	// AI routes (proxy — API key resolved from encrypted DB config, never exposed to browser)
 	api.Post("/ask-data", aiH.AskData)
-	api.Post("/ask-data/stream", aiH.StreamAskData)   // SSE: token-by-token SQL + results
-	api.Post("/reports/stream", aiH.StreamGenerateReport) // SSE: report generation
+	api.Post("/ask-data/stream", aiH.StreamAskData)       // SSE: token-by-token SQL + results
+	api.Post("/reports/stream", aiH.StreamGenerateReport) // SSE: streamed report generation
+
+	// User Settings routes
+	settings := api.Group("/settings")
+	settings.Get("/ai-config", settingsH.GetAIConfig)       // Returns config WITHOUT raw API key
+	settings.Put("/ai-config", settingsH.SaveAIConfig)      // Encrypts & stores API key server-side
+	settings.Delete("/ai-config", settingsH.DeleteAIConfig) // Remove stored AI config
 
 	// Chart routes
 	charts := api.Group("/charts")
@@ -431,6 +439,7 @@ func autoMigrate(db *gorm.DB) error {
 		&models.DBConnection{},
 		&models.SchemaTable{},
 		&models.SchemaRelationship{},
+		&models.UserAIConfig{}, // per-user encrypted AI config (security: API key stored server-side)
 	)
 }
 
