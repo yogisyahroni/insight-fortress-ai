@@ -27,7 +27,7 @@ type DataStory struct {
 	UserID    string          `json:"userId" gorm:"type:uuid;not null;index"`
 	DatasetID *string         `json:"datasetId" gorm:"type:uuid;index"`
 	Title     string          `json:"title" gorm:"not null"`
-	Narrative string          `json:"narrative" gorm:"type:text"`
+	Narrative string          `json:"content" gorm:"type:text;column:narrative"`
 	Insights  json.RawMessage `json:"insights" gorm:"type:jsonb;default:'[]'"`
 	Charts    json.RawMessage `json:"charts" gorm:"type:jsonb;default:'[]'"`
 	CreatedAt time.Time       `json:"createdAt"`

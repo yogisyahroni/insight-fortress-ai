@@ -113,7 +113,7 @@ export default function Reports() {
                         {formatDistanceToNow(new Date(report.createdAt), { addSuffix: true })}
                       </span>
                     </div>
-                    <p className="text-muted-foreground mt-3 line-clamp-2">{report.content.substring(0, 200)}…</p>
+                    <p className="text-muted-foreground mt-3 line-clamp-2">{report.content?.substring(0, 200)}…</p>
                   </div>
                 </div>
                 <div className="flex gap-2">

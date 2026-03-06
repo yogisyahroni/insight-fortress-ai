@@ -74,7 +74,7 @@ func (h *ReportHandler) CreateStory(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
 	var req struct {
 		Title     string      `json:"title"`
-		Narrative string      `json:"narrative"`
+		Content   string      `json:"content"`
 		DatasetID *string     `json:"datasetId"`
 		Insights  interface{} `json:"insights"`
 		Charts    interface{} `json:"charts"`
@@ -91,7 +91,7 @@ func (h *ReportHandler) CreateStory(c *fiber.Ctx) error {
 		UserID:    userID,
 		DatasetID: req.DatasetID,
 		Title:     req.Title,
-		Narrative: req.Narrative,
+		Narrative: req.Content,
 		CreatedAt: time.Now(),
 	}
 	if err := h.db.Create(&story).Error; err != nil {

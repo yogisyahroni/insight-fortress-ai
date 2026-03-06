@@ -153,7 +153,7 @@ export default function DataStories() {
                 </div>
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-1 truncate">{story.title}</h3>
-              <p className="text-sm text-muted-foreground line-clamp-3">{story.content.substring(0, 200)}…</p>
+              <p className="text-sm text-muted-foreground line-clamp-3">{story.content?.substring(0, 200)}…</p>
               <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border text-xs text-muted-foreground">
                 <Sparkles className="w-3 h-3 text-primary" />
                 {formatDistanceToNow(new Date(story.createdAt), { addSuffix: true })}
