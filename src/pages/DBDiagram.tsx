@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ReactFlow, Background, Controls, MiniMap, Panel,
@@ -74,8 +74,10 @@ export default function DBDiagram() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Re-sync when data changes
-  useMemo(() => { setNodes(initialNodes); setEdges(initialEdges); }, [initialNodes, initialEdges]);
+  // Re-sync nodes/edges when underlying data changes (useEffect is correct here, not useMemo)
+  // useMemo with setState caused React Error #321 (too many re-renders / infinite loop)
+  useEffect(() => { setNodes(initialNodes); }, [initialNodes]);
+  useEffect(() => { setEdges(initialEdges); }, [initialEdges]);
 
   // BUG-H2 FIX: persist new connections to backend
   const onConnect = useCallback(async (params: Connection) => {
