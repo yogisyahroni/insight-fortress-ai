@@ -107,7 +107,7 @@ function ProtectedLayout() {
         <Route path="/import" element={<ImportPage />} />
         <Route path="/privacy" element={<DataPrivacy />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/not-found" replace />} />
       </Routes>
     </AppLayout>
   );
@@ -123,8 +123,12 @@ const App = () => (
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          {/* Standalone 404 — renders WITHOUT AppLayout/sidebar */}
+          <Route path="/not-found" element={<NotFound />} />
           {/* Protected routes — all nested inside auth guard */}
           <Route path="/*" element={<ProtectedLayout />} />
+          {/* Top-level catch-all fallback (reaches here only if nothing matches) */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
