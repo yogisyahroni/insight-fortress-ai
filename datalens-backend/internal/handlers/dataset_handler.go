@@ -210,6 +210,18 @@ func (h *DatasetHandler) QueryDatasetData(c *fiber.Ctx) error {
 	// Build base query on dynamic table
 	query := h.db.Table(ds.DataTableName)
 
+	// Fetch Calculate Fields (DLX Engine)
+	var calcFields []models.CalculatedField
+	if err := h.db.Where("dataset_id = ? AND user_id = ?", id, userID).Find(&calcFields).Error; err == nil && len(calcFields) > 0 {
+		selects := []string{"*"}
+		for _, cf := range calcFields {
+			formula := strings.ReplaceAll(cf.Formula, ";", "")
+			formula = strings.ReplaceAll(formula, "--", "")
+			selects = append(selects, fmt.Sprintf(`(%s) AS "%s"`, formula, sanitizeIdentifier(cf.Name)))
+		}
+		query = query.Select(strings.Join(selects, ", "))
+	}
+
 	// Apply RLS filters
 	rlsFilters := middleware.GetRLSFilters(c)
 	if len(rlsFilters) > 0 {
@@ -272,11 +284,31 @@ func (h *DatasetHandler) GetDatasetStats(c *fiber.Ctx) error {
 		return c.JSON(map[string]interface{}{})
 	}
 
+	// ++ INJECT CALCULATED FIELDS ++
+	var calcFields []models.CalculatedField
+	if err := h.db.Where("dataset_id = ? AND user_id = ?", id, userID).Find(&calcFields).Error; err == nil {
+		for _, cf := range calcFields {
+			formula := strings.ReplaceAll(cf.Formula, ";", "")
+			formula = strings.ReplaceAll(formula, "--", "")
+
+			colDefs = append(colDefs, models.ColumnDef{
+				Name:        cf.Name,
+				Type:        "number", // DLX formulas default to numeric in Phase 1
+				CalcFormula: formula,
+			})
+		}
+	}
+
 	stats := map[string]interface{}{}
 
 	for _, col := range colDefs {
 		safeCol := sanitizeIdentifier(col.Name)
-		quoted := fmt.Sprintf(`"%s"`, safeCol)
+		var quoted string
+		if col.CalcFormula != "" {
+			quoted = fmt.Sprintf(`(%s)`, col.CalcFormula)
+		} else {
+			quoted = fmt.Sprintf(`"%s"`, safeCol)
+		}
 
 		colStat := map[string]interface{}{
 			"totalCount": ds.RowCount,

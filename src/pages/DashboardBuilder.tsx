@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
-import { useRelationships, useAutoJoinQuery, useFormatRules, useCreateFormatRule, useDeleteFormatRule, useParameters, useCreateParameter, useDeleteParameter, useUpdateParameter, useDrillConfig, useSaveDrillConfig } from '@/hooks/useApi';
+import { useRelationships, useAutoJoinQuery, useFormatRules, useCreateFormatRule, useDeleteFormatRule, useParameters, useCreateParameter, useDeleteParameter, useUpdateParameter, useDrillConfig, useSaveDrillConfig, useCalcFields, useCreateCalcField, useDeleteCalcField } from '@/hooks/useApi';
 import type { WidgetType, Widget, DashboardConfig } from '@/types/data';
 import type { FormatRuleItem, FormatRuleCreate, DashboardParameter } from '@/lib/api';
 import { HelpTooltip } from '@/components/HelpTooltip';
@@ -170,6 +170,12 @@ export default function DashboardBuilder() {
   const [drillAggFn, setDrillAggFn] = useState<'count' | 'sum' | 'avg'>('count');
   const [drillLevels, setDrillLevels] = useState<Record<string, { column: string, filterValue: string }[]>>({});
 
+  // --- Calculated Fields State ---
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [calcDatasetId, setCalcDatasetId] = useState('');
+  const [calcName, setCalcName] = useState('');
+  const [calcFormula, setCalcFormula] = useState('');
+
   // Right Panel Tabs State
   const [activeTab, setActiveTab] = useState('basic');
 
@@ -186,6 +192,10 @@ export default function DashboardBuilder() {
 
   const { data: drillConfigs = [] } = useDrillConfig(activeDatasetId || undefined);
   const saveDrillMut = useSaveDrillConfig();
+
+  const { data: allCalcFields = [] } = useCalcFields();
+  const createCalcMut = useCreateCalcField();
+  const deleteCalcMut = useDeleteCalcField();
 
   // When switching widget, repopulate drill state
   useEffect(() => {
@@ -677,6 +687,21 @@ export default function DashboardBuilder() {
           groups.push({ datasetName: `Related: ${targetDs.name}`, columns: mappedColumns });
         }
       });
+
+      // Inject calculated fields into Base Group visually
+      const dsCalcFields = allCalcFields.filter(f => f.datasetId === baseDs.id);
+      if (dsCalcFields.length > 0) {
+        const baseGroup = groups.find(g => g.datasetName === `${baseDs.name} (Base)`);
+        if (baseGroup) {
+          dsCalcFields.forEach(cf => {
+            baseGroup.columns.push({
+              name: cf.name,
+              type: 'number',
+              displayName: `fx: ${cf.name}`
+            });
+          });
+        }
+      }
     }
     return groups;
   };
@@ -804,6 +829,62 @@ export default function DashboardBuilder() {
                       {c.name}
                     </div>
                   ))}
+                  {allCalcFields.filter(cf => cf.datasetId === ds.id).map(cf => (
+                    <div key={cf.id} className="text-xs flex items-center justify-between text-primary font-medium group">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-violet-500" />
+                        fx <i>{cf.name}</i>
+                      </div>
+                      <X className="w-3 h-3 text-destructive cursor-pointer opacity-0 group-hover:opacity-100" onClick={() => deleteCalcMut.mutate(cf.id)} />
+                    </div>
+                  ))}
+                  <div className="pt-2">
+                    <Sheet open={calcOpen && calcDatasetId === ds.id} onOpenChange={(open) => {
+                      setCalcOpen(open);
+                      if (open) setCalcDatasetId(ds.id);
+                    }}>
+                      <SheetTrigger asChild>
+                        <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground hover:text-primary h-6 justify-start px-0" onClick={() => setCalcDatasetId(ds.id)}>
+                          <Plus className="w-3 h-3 mr-1" /> Add Formula
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent className="bg-card w-[400px] border-l border-border overflow-y-auto z-50">
+                        <SheetHeader className="mb-6 border-b border-border pb-4">
+                          <SheetTitle className="flex items-center gap-2">
+                            <Variable className="w-5 h-5 text-violet-500" /> Formula Editor (DLX)
+                          </SheetTitle>
+                        </SheetHeader>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Field Name</Label>
+                            <Input placeholder="e.g. Profit Margin" value={calcName} onChange={e => setCalcName(e.target.value)} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Expression (PostgreSQL Syntax)</Label>
+                            <textarea
+                              className="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                              placeholder='e.g. "sales" - "cost"'
+                              value={calcFormula}
+                              onChange={e => setCalcFormula(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">Use double quotes for column names (e.g. <code className="text-violet-500">"revenue" / "orders"</code>). No subqueries allowed here.</p>
+                          </div>
+                          <Button className="w-full" disabled={!calcName || !calcFormula || createCalcMut.isPending} onClick={() => {
+                            createCalcMut.mutate({ datasetId: ds.id, name: calcName, formula: calcFormula }, {
+                              onSuccess: () => {
+                                toast({ title: 'Formula saved successfully.' });
+                                setCalcName('');
+                                setCalcFormula('');
+                                setCalcOpen(false);
+                              }
+                            });
+                          }}>
+                            Save Calculated Field
+                          </Button>
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                  </div>
                 </div>
               </div>
             ))}

@@ -27,8 +27,9 @@ func (Dataset) TableName() string { return "datasets" }
 
 // ColumnDef describes one column in the dataset.
 type ColumnDef struct {
-	Name       string `json:"name"`
-	Type       string `json:"type"` // string, number, date, boolean
-	Nullable   bool   `json:"nullable"`
-	SampleVals []any  `json:"sampleVals,omitempty"`
+	Name        string `json:"name"`
+	Type        string `json:"type"` // string, number, date, boolean
+	Nullable    bool   `json:"nullable"`
+	SampleVals  []any  `json:"sampleVals,omitempty"`
+	CalcFormula string `json:"calcFormula,omitempty"` // For frontend and stats engines to evaluate DLX formulas
 }

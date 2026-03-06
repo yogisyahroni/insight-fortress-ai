@@ -82,6 +82,19 @@ func (h *QueryHandler) AutoJoinQuery(c *fiber.Ctx) error {
 		tableMap[ds.ID] = ds.DataTableName
 	}
 
+	// Fetch Calculated Fields (DLX Engine)
+	var calcFields []models.CalculatedField
+	if err := h.db.Where("dataset_id IN ? AND user_id = ?", dsIDList, userID).Find(&calcFields).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch calculated fields"})
+	}
+
+	// Map CalcFields by DatasetID + Name for quick lookup
+	calcFieldMap := make(map[string]models.CalculatedField)
+	for _, cf := range calcFields {
+		key := fmt.Sprintf("%s|%s", cf.DatasetID, cf.Name)
+		calcFieldMap[key] = cf
+	}
+
 	// 2. Build the SELECT clause
 	var selectCols []string
 	var groupByCols []string
@@ -91,6 +104,18 @@ func (h *QueryHandler) AutoJoinQuery(c *fiber.Ctx) error {
 		tableName := tableMap[f.DatasetID]
 		colAlias := fmt.Sprintf("col_%d", i) // e.g. col_0, col_1 to avoid collisions
 		safeCol := sanitizeIdentifier(f.Column)
+
+		// Check if this field is a Calculated Field
+		cfKey := fmt.Sprintf("%s|%s", f.DatasetID, f.Column)
+		isCalcField := false
+		calcFormula := ""
+		if cf, exists := calcFieldMap[cfKey]; exists {
+			isCalcField = true
+			// Basic security: remove semicolons and comments to prevent basic injection
+			// A robust engine would parse the AST, but this is V1
+			calcFormula = strings.ReplaceAll(cf.Formula, ";", "")
+			calcFormula = strings.ReplaceAll(calcFormula, "--", "")
+		}
 
 		if f.AggFn != "" {
 			hasAgg = true
@@ -102,15 +127,25 @@ func (h *QueryHandler) AutoJoinQuery(c *fiber.Ctx) error {
 				agg = "COUNT"
 			}
 
-			// Cast to numeric for agg functions other than count
-			if agg == "COUNT" {
-				selectCols = append(selectCols, fmt.Sprintf(`%s("%s"."%s") AS "%s"`, agg, tableName, safeCol, colAlias))
+			if isCalcField {
+				// E.g. SUM( (sales * 2) ) AS col_0
+				selectCols = append(selectCols, fmt.Sprintf(`%s((%s)) AS "%s"`, agg, calcFormula, colAlias))
 			} else {
-				selectCols = append(selectCols, fmt.Sprintf(`%s("%s"."%s"::numeric) AS "%s"`, agg, tableName, safeCol, colAlias))
+				// Cast to numeric for agg functions other than count
+				if agg == "COUNT" {
+					selectCols = append(selectCols, fmt.Sprintf(`%s("%s"."%s") AS "%s"`, agg, tableName, safeCol, colAlias))
+				} else {
+					selectCols = append(selectCols, fmt.Sprintf(`%s("%s"."%s"::numeric) AS "%s"`, agg, tableName, safeCol, colAlias))
+				}
 			}
 		} else {
-			selectCols = append(selectCols, fmt.Sprintf(`"%s"."%s" AS "%s"`, tableName, safeCol, colAlias))
-			groupByCols = append(groupByCols, fmt.Sprintf(`"%s"."%s"`, tableName, safeCol))
+			if isCalcField {
+				selectCols = append(selectCols, fmt.Sprintf(`(%s) AS "%s"`, calcFormula, colAlias))
+				groupByCols = append(groupByCols, fmt.Sprintf(`(%s)`, calcFormula))
+			} else {
+				selectCols = append(selectCols, fmt.Sprintf(`"%s"."%s" AS "%s"`, tableName, safeCol, colAlias))
+				groupByCols = append(groupByCols, fmt.Sprintf(`"%s"."%s"`, tableName, safeCol))
+			}
 		}
 	}
 
