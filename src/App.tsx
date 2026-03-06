@@ -15,7 +15,6 @@ import Dashboard from "./pages/Dashboard";
 import UploadData from "./pages/UploadData";
 import Datasets from "./pages/Datasets";
 import DataExplorer from "./pages/DataExplorer";
-import ChartBuilder from "./pages/ChartBuilder";
 import DashboardBuilder from "./pages/DashboardBuilder";
 import QueryEditor from "./pages/QueryEditor";
 import ETLPipeline from "./pages/ETLPipeline";
@@ -34,12 +33,9 @@ import VisualETL from "./pages/VisualETL";
 import CalculatedFields from "./pages/CalculatedFields";
 import DataProfiling from "./pages/DataProfiling";
 import Bookmarks from "./pages/Bookmarks";
-import ConditionalFormatting from "./pages/ConditionalFormatting";
-import DrillDown from "./pages/DrillDown";
 import GeoVisualization from "./pages/GeoVisualization";
 import ScheduledReports from "./pages/ScheduledReports";
 import RowLevelSecurity from "./pages/RowLevelSecurity";
-import Parameters from "./pages/Parameters";
 import CrossFilter from "./pages/CrossFilter";
 import Annotations from "./pages/Annotations";
 import EmbedShare from "./pages/EmbedShare";
@@ -76,7 +72,7 @@ function ProtectedLayout() {
         <Route path="/explorer" element={<DataExplorer />} />
         <Route path="/ask-data" element={<AskData />} />
         <Route path="/pivot" element={<PivotTable />} />
-        <Route path="/chart-builder" element={<ChartBuilder />} />
+        <Route path="/chart-builder" element={<Navigate to="/dashboard-builder" replace />} />
         <Route path="/dashboard-builder" element={<DashboardBuilder />} />
         <Route path="/kpi" element={<KPIScorecard />} />
         <Route path="/query" element={<QueryEditor />} />
@@ -86,13 +82,10 @@ function ProtectedLayout() {
         <Route path="/visual-etl" element={<VisualETL />} />
         <Route path="/calculated-fields" element={<CalculatedFields />} />
         <Route path="/data-profiling" element={<DataProfiling />} />
-        <Route path="/drill-down" element={<DrillDown />} />
-        <Route path="/formatting" element={<ConditionalFormatting />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/geo" element={<GeoVisualization />} />
         <Route path="/cross-filter" element={<CrossFilter />} />
         <Route path="/annotations" element={<Annotations />} />
-        <Route path="/parameters" element={<Parameters />} />
         <Route path="/scheduled-reports" element={<ScheduledReports />} />
         <Route path="/rls" element={<RowLevelSecurity />} />
         <Route path="/embed" element={<EmbedShare />} />

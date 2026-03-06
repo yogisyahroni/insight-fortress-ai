@@ -144,6 +144,7 @@ func main() {
 	// P2 extras: drill-configs (BUG-M2) + embed tokens (BUG-M5)
 	drillConfigH := handlers.NewDrillConfigHandler(db)
 	embedH := handlers.NewEmbedHandler(db)
+	queryH := handlers.NewQueryHandler(db)
 
 	// --- Fiber App ---
 	app := fiber.New(fiber.Config{
@@ -249,6 +250,10 @@ func main() {
 	kpis.Post("/", kpiH.CreateKPI)
 	kpis.Put("/:id", kpiH.UpdateKPI)
 	kpis.Delete("/:id", kpiH.DeleteKPI)
+
+	// Query routes
+	queries := api.Group("/query")
+	queries.Post("/auto-join", queryH.AutoJoinQuery)
 
 	// Alert routes
 	alerts := api.Group("/alerts")

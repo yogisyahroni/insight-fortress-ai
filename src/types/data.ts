@@ -79,7 +79,7 @@ export interface SavedChart {
   groupBy?: string;
 }
 
-export type WidgetType = 'bar' | 'line' | 'pie' | 'area' | 'stat' | 'text';
+export type WidgetType = 'bar' | 'line' | 'pie' | 'area' | 'stat' | 'text' | 'scatter' | 'radar' | 'funnel' | 'treemap' | 'waterfall' | 'heatmap' | 'boxplot' | 'horizontal_bar';
 
 export interface Widget {
   id: string;
@@ -88,6 +88,7 @@ export interface Widget {
   dataSetId: string;
   xAxis: string;
   yAxis: string;
+  groupBy?: string; // Menambahkan groupBy opsional (banyak digunakan di Heatmap dsb)
   width: 'half' | 'full' | 'third';
 }
 

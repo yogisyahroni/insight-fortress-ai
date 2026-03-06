@@ -47,8 +47,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: 'Visualize',
     items: [
-      { icon: PaintBucket, label: 'Chart Builder', path: '/chart-builder' },
-      { icon: LayoutGrid, label: 'Dashboard Builder', path: '/dashboard-builder' },
+      { icon: LayoutGrid, label: 'Analytics Canvas', path: '/dashboard-builder' },
       { icon: Globe, label: 'Geo Visualization', path: '/geo' },
     ],
   },
@@ -77,11 +76,8 @@ const menuGroups: MenuGroup[] = [
     title: 'Features',
     items: [
       { icon: Bell, label: 'Alerts', path: '/alerts' },
-      { icon: Layers, label: 'Drill-Down', path: '/drill-down' },
       { icon: Link2, label: 'Cross-Filter', path: '/cross-filter' },
-      { icon: Paintbrush, label: 'Formatting', path: '/formatting' },
       { icon: StickyNote, label: 'Annotations', path: '/annotations' },
-      { icon: Variable, label: 'Parameters', path: '/parameters' },
       { icon: Code, label: 'Embed & Share', path: '/embed' },
       { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
     ],

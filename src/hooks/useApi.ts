@@ -652,3 +652,14 @@ export function useRevokeEmbedToken() {
         onSuccess: () => qc.invalidateQueries({ queryKey: ['embed-tokens'] }),
     });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 10 Hooks — Auto-Join Query Engine
+// ─────────────────────────────────────────────────────────────────────────────
+import { queryApi, AutoJoinPayload } from '@/lib/api';
+
+export function useAutoJoinQuery() {
+    return useMutation({
+        mutationFn: (payload: AutoJoinPayload) => queryApi.autoJoin(payload).then((r) => r.data),
+    });
+}

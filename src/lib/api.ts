@@ -816,3 +816,26 @@ export const embedApi = {
     list: () => api.get<{ data: EmbedToken[] }>('/embed-tokens'),
     revoke: (id: string) => api.delete(`/embed-tokens/${id}`),
 };
+
+// ── Query Engine API (Phase 10: Auto-Join) ───────────────────────────────────
+
+export interface QueryField {
+    datasetId: string;
+    column: string;
+    aggFn?: 'count' | 'sum' | 'avg' | 'min' | 'max' | string;
+}
+
+export interface AutoJoinPayload {
+    baseDatasetId: string;
+    fields: QueryField[];
+    limit?: number;
+}
+
+export interface AutoJoinResult {
+    data: Record<string, any>[];
+    query: string;
+}
+
+export const queryApi = {
+    autoJoin: (payload: AutoJoinPayload) => api.post<AutoJoinResult>('/query/auto-join', payload),
+};
