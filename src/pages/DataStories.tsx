@@ -13,6 +13,8 @@ import { HelpTooltip } from '@/components/HelpTooltip';
 import { useStories, useCreateStory, useDeleteStory, useDatasets, useGenerateReport } from '@/hooks/useApi';
 import type { DataStory } from '@/lib/api';
 
+import { StoryEditor } from '@/components/StoryEditor';
+
 export default function DataStories() {
   const { data: stories = [], isLoading } = useStories();
   const { data: datasets = [] } = useDatasets();
@@ -26,7 +28,7 @@ export default function DataStories() {
   const [storyFocus, setStoryFocus] = useState('');
 
   // Manual create mode
-  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
   const [manualContent, setManualContent] = useState('');
 
@@ -51,12 +53,78 @@ export default function DataStories() {
     try {
       await createMut.mutateAsync({ title: manualTitle, content: manualContent });
       setManualTitle(''); setManualContent('');
-      setManualDialogOpen(false);
+      setIsComposing(false);
       toast({ title: 'Story created' });
     } catch {
       toast({ title: 'Error', description: 'Failed to create story.', variant: 'destructive' });
     }
   };
+
+  if (isComposing) {
+    return (
+      <div className="h-full flex flex-col p-6 space-y-6 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-primary" /> Story Builder
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">Design your narrative layout</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsComposing(false)}>Cancel</Button>
+            <Button onClick={handleCreateManual} disabled={createMut.isPending || !manualTitle || !manualContent || manualContent === '<p></p>'}>
+              {createMut.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              Save Story
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 flex-1 min-h-[500px]">
+          {/* Settings Sidebar */}
+          <div className="space-y-6 pr-6 border-r border-border md:block hidden overflow-y-auto">
+            <div>
+              <h3 className="font-semibold text-sm mb-3">Story Settings</h3>
+              <div className="space-y-2">
+                <Label className="text-xs">Related Dataset (Optional)</Label>
+                <Select value={selectedDsId} onValueChange={setSelectedDsId}>
+                  <SelectTrigger className="w-full bg-background"><SelectValue placeholder="Link to dataset" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {datasets?.map((ds) => (
+                      <SelectItem key={ds.id} value={ds.id}>{ds.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-snug">Linking a dataset allows you to reference its specific metrics down the line.</p>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-border">
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <h4 className="flex items-center gap-2 text-sm font-semibold text-primary mb-1">
+                  <Sparkles className="w-4 h-4" /> AI Tip
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">Want to generate a story automatically instead? Cancel this manual mode and use the AI generator in the main menu.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Editor Area */}
+          <div className="flex flex-col space-y-4">
+            <Input
+              value={manualTitle}
+              onChange={(e) => setManualTitle(e.target.value)}
+              placeholder="Storyboard Title..."
+              className="text-xl md:text-2xl font-semibold px-4 py-6 border border-border shadow-sm bg-card hover:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/50 transition-colors"
+            />
+            <div className="flex-1 rounded-xl overflow-hidden shadow-sm flex flex-col bg-background border border-border">
+              <StoryEditor content={manualContent} onChange={setManualContent} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -99,21 +167,9 @@ export default function DataStories() {
             {(generateMut.isPending || createMut.isPending) ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
             Generate with AI
           </Button>
-          <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline"><Plus className="w-4 h-4 mr-2" />Write Manually</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Write Story</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div><Label>Title</Label><Input value={manualTitle} onChange={(e) => setManualTitle(e.target.value)} placeholder="Story title" /></div>
-                <div><Label>Content</Label><Textarea value={manualContent} onChange={(e) => setManualContent(e.target.value)} placeholder="Write your story…" rows={8} /></div>
-                <Button onClick={handleCreateManual} className="w-full" disabled={createMut.isPending}>
-                  {createMut.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Save Story
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" onClick={() => setIsComposing(true)}>
+            <Plus className="w-4 h-4 mr-2" />Write Manually
+          </Button>
         </div>
       </motion.div>
 
@@ -142,7 +198,7 @@ export default function DataStories() {
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
                       <DialogHeader><DialogTitle>{viewStory?.title}</DialogTitle></DialogHeader>
-                      <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed">{viewStory?.content}</div>
+                      <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: viewStory?.content || '' }} />
                     </DialogContent>
                   </Dialog>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
@@ -153,8 +209,11 @@ export default function DataStories() {
                 </div>
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-1 truncate">{story.title}</h3>
-              <p className="text-sm text-muted-foreground line-clamp-3">{story.content?.substring(0, 200)}…</p>
-              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border text-xs text-muted-foreground">
+              <div className="flex-1 relative overflow-hidden text-sm text-muted-foreground/80 mb-2">
+                <div className="line-clamp-3 prose prose-sm dark:prose-invert prose-p:my-1 opacity-80" dangerouslySetInnerHTML={{ __html: story.content || '' }} />
+                <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+              </div>
+              <div className="flex items-center gap-2 mt-auto pt-3 border-t border-border text-xs text-muted-foreground shadow-sm">
                 <Sparkles className="w-3 h-3 text-primary" />
                 {formatDistanceToNow(new Date(story.createdAt), { addSuffix: true })}
               </div>
