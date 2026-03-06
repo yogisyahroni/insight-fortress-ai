@@ -301,7 +301,7 @@ func (h *SchemaHandler) QueryConnection(c *fiber.Ctx) error {
 // DeleteConnection soft-deletes a DB connection.
 func (h *SchemaHandler) DeleteConnection(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c)
-	if err := h.db.Where("id = ? AND user_id = ?", c.Params("id"), userID).
+	if err := h.db.Model(&models.DBConnection{}).Where("id = ? AND user_id = ?", c.Params("id"), userID).
 		Updates(map[string]interface{}{"is_active": false}).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Delete failed"})
 	}
