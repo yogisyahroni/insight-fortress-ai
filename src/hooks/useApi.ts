@@ -474,7 +474,7 @@ export function useDeleteRelationship() {
 export function useParameters(datasetId?: string) {
     return useQuery({
         queryKey: ['parameters', datasetId],
-        queryFn: () => parameterApi.list(datasetId).then((r) => r.data),
+        queryFn: () => parameterApi.list(datasetId).then((r) => (r.data as any).data ?? []),
         staleTime: 1000 * 30,
     });
 }
@@ -509,7 +509,7 @@ export function useDeleteParameter() {
 export function useRLSRules(datasetId?: string) {
     return useQuery({
         queryKey: ['rls-rules', datasetId],
-        queryFn: () => rlsApi.list(datasetId).then((r) => r.data),
+        queryFn: () => rlsApi.list(datasetId).then((r) => (r.data as any).data ?? []),
         staleTime: 1000 * 30,
     });
 }
@@ -544,7 +544,7 @@ export function useDeleteRLSRule() {
 export function useFormatRules(datasetId?: string) {
     return useQuery({
         queryKey: ['format-rules', datasetId],
-        queryFn: () => formatRuleApi.list(datasetId).then((r) => r.data),
+        queryFn: () => formatRuleApi.list(datasetId).then((r) => (r.data as any).data ?? []),
         staleTime: 1000 * 30,
     });
 }
@@ -571,7 +571,9 @@ export function useDeleteFormatRule() {
 export function useCalcFields(datasetId?: string) {
     return useQuery({
         queryKey: ['calc-fields', datasetId],
-        queryFn: () => calcFieldApi.list(datasetId).then((r) => r.data),
+        // Backend returns { data: [...] } — must access r.data.data to get the array
+        // r.data alone is an object, which causes TypeError: d.filter is not a function
+        queryFn: () => calcFieldApi.list(datasetId).then((r) => (r.data as any).data ?? []),
         staleTime: 1000 * 30,
     });
 }
