@@ -28,15 +28,6 @@ export default function PivotTable() {
     if (!meta) return null;
     return { ...meta, data: __datasetDataRes?.data || [] };
   }, [dataSets, dsId, __datasetDataRes]);
-  const isNum = (type?: string) => {
-    if (!type) return false;
-    const t = type.toLowerCase();
-    return ['numeric', 'number', 'int', 'float', 'double', 'decimal', 'real', 'integer', 'int4', 'int8', 'float4', 'float8'].some(val => t.includes(val));
-  };
-
-  const strCols = dataset?.columns.filter(c => !isNum(c.type)) || [];
-  const numCols = dataset?.columns.filter(c => isNum(c.type)) || [];
-
   const pivotData = useMemo(() => {
     if (!dataset || !rowField || !valueField) return null;
 
@@ -133,7 +124,7 @@ export default function PivotTable() {
           <div><Label>Row Field</Label>
             <Select value={rowField} onValueChange={setRowField}>
               <SelectTrigger><SelectValue placeholder="Rows" /></SelectTrigger>
-              <SelectContent>{strCols.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+              <SelectContent>{(dataset?.columns || []).map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div><Label>Column Field</Label>
@@ -141,14 +132,14 @@ export default function PivotTable() {
               <SelectTrigger><SelectValue placeholder="Columns" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
-                {strCols.filter(c => c.name !== rowField).map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
+                {(dataset?.columns || []).filter(c => c.name !== rowField).map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div><Label>Value Field</Label>
             <Select value={valueField} onValueChange={setValueField}>
               <SelectTrigger><SelectValue placeholder="Values" /></SelectTrigger>
-              <SelectContent>{numCols.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+              <SelectContent>{(dataset?.columns || []).map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div><Label>Aggregation</Label>
