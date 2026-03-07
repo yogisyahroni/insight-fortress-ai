@@ -82,7 +82,7 @@ function DeckGLMap({
           zoom: 1.5,
           pitch: 0,
           bearing: 0
-        }}
+        } as any}
         controller={true}
         layers={[layer]}
         getTooltip={({ object }) =>

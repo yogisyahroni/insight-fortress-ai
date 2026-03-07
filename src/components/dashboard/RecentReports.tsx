@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { FileText, Clock, TrendingUp } from 'lucide-react';
-import type { Report } from '@/types/data';
+import type { Report } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 
 interface RecentReportsProps {
@@ -19,7 +19,7 @@ export function RecentReports({ reports }: RecentReportsProps) {
         <h3 className="text-lg font-semibold text-foreground">Recent Reports</h3>
         <TrendingUp className="w-5 h-5 text-primary" />
       </div>
-      
+
       <div className="space-y-4">
         {reports.length === 0 ? (
           <div className="text-center py-8">
