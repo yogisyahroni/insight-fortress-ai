@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ReactFlow, Background, Controls, MiniMap, Panel,
@@ -21,7 +21,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import ETLNode from '@/components/etl/ETLNodes';
-import { useCreatePipeline, useRunPipeline, useDatasets } from '@/hooks/useApi';
+import { useCreatePipeline, useRunPipeline, useDatasets, useDatasetData } from '@/hooks/useApi';
+import { evaluatePipelinePreview } from '@/lib/etlEvaluator';
 
 const nodeTypes = { etlNode: ETLNode };
 
@@ -64,6 +65,7 @@ function VisualETLInner() {
   const sourceNode = nodes.find((n) => (n.data as any).nodeType === 'source');
   const sourceDatasetId = (sourceNode?.data as any)?.config?.dataSetId ?? '';
   const selectedDataset = dataSets.find((ds: any) => ds.id === sourceDatasetId);
+  const { data: sourceDataRaw } = useDatasetData(sourceDatasetId, { limit: 10 });
 
   let datasetColumns: any[] = [];
   try {
@@ -125,6 +127,40 @@ function VisualETLInner() {
     setEdges(eds => eds.filter(e => !e.selected));
   }, [setNodes, setEdges]);
 
+  // Evaluator Effect for Live Preview
+  const configDeps = JSON.stringify(nodes.map(n => ({ id: n.id, config: (n.data as any).config, type: (n.data as any).nodeType })));
+  const edgeDeps = JSON.stringify(edges);
+  const sourceRows = sourceDataRaw?.data || [];
+
+  useEffect(() => {
+    if (!isRunning || !sourceRows.length) return;
+
+    try {
+      const parsedNodes = JSON.parse(configDeps).map((n: any) => ({
+        id: n.id,
+        data: { nodeType: n.type, config: n.config }
+      }));
+      const parsedEdges = JSON.parse(edgeDeps);
+
+      const previewMap = evaluatePipelinePreview(parsedNodes, parsedEdges, sourceRows);
+
+      setNodes(nds => {
+        let changed = false;
+        const newNodes = nds.map(n => {
+          const newPreview = previewMap.get(n.id) || [];
+          if (JSON.stringify(n.data.preview) !== JSON.stringify(newPreview)) {
+            changed = true;
+            return { ...n, data: { ...n.data, preview: newPreview, status: 'done' } };
+          }
+          return n;
+        });
+        return changed ? newNodes : nds;
+      });
+    } catch (err) {
+      console.error("Preview evaluation failed", err);
+    }
+  }, [configDeps, edgeDeps, sourceRows, isRunning, setNodes]);
+
   // BUG-C3 FIX: Save pipeline definition to backend, then run it
   const savePipeline = useCallback(async () => {
     if (nodes.length === 0) {
@@ -155,39 +191,21 @@ function VisualETLInner() {
     }
   }, [nodes, pipelineName, createPipelineMut, toast, sourceDatasetId]);
 
-  const runPipeline = useCallback(async () => {
+  const togglePreview = useCallback(() => {
     if (nodes.length === 0) { toast({ title: 'No nodes', description: 'Add nodes to the pipeline first' }); return; }
-    setIsRunning(true);
 
-    // Visual UX feedback: animate nodes as running
-    for (const node of nodes) {
-      setNodes(nds => nds.map(n => n.id === node.id ? { ...n, data: { ...n.data, status: 'running' } } : n));
-    }
-
-    try {
-      // Step 1: ensure pipeline is saved to backend
-      let pipelineId = savedPipelineId;
-      if (!pipelineId) {
-        pipelineId = await savePipeline();
-        if (!pipelineId) { setIsRunning(false); return; }
+    setIsRunning(prev => {
+      const next = !prev;
+      if (!next) {
+        // Stop preview: clear preview data and reset status
+        setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, preview: [], status: 'idle' } })));
+        toast({ title: 'Preview Stopped', description: 'Live data preview is now off.' });
+      } else {
+        toast({ title: 'Preview Started', description: 'Live data preview is active globally.' });
       }
-
-      // Step 2: POST /api/v1/pipelines/:id/run — actual server-side execution
-      const runResult = await runPipelineMut.mutateAsync(pipelineId);
-
-      // Mark all nodes as done after backend confirms run started
-      setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, status: 'done' } })));
-      toast({
-        title: '✅ Pipeline submitted',
-        description: `Run ID: ${runResult.runId?.slice(0, 8) ?? '—'}… — check backend for results`,
-      });
-    } catch {
-      setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, status: 'error' } })));
-      toast({ title: 'Pipeline run failed', description: 'Backend returned an error', variant: 'destructive' });
-    } finally {
-      setIsRunning(false);
-    }
-  }, [nodes, savedPipelineId, savePipeline, runPipelineMut, setNodes, toast]);
+      return next;
+    });
+  }, [nodes.length, setNodes, toast]);
 
   return (
     <div className="space-y-4">
@@ -212,9 +230,9 @@ function VisualETLInner() {
               {isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
               Save
             </Button>
-            <Button size="sm" onClick={runPipeline} disabled={isRunning || nodes.length === 0}>
-              {isRunning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
-              {isRunning ? 'Running…' : 'Run'}
+            <Button size="sm" onClick={togglePreview} variant={isRunning ? 'destructive' : 'default'} disabled={nodes.length === 0}>
+              {isRunning ? <Filter className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
+              {isRunning ? 'Stop Preview' : 'Run Preview'}
             </Button>
           </div>
         </div>
