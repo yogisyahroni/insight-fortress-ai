@@ -3,11 +3,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Database, Plus, Trash2, Play, RefreshCw, Code2, CheckCircle,
     XCircle, Loader2, ChevronDown, ChevronUp, Shield, Zap,
-    Globe, Server
+    Globe, Server, Search, RefreshCcw, CheckCircle2, LayoutGrid
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, connectionApi, type DBConnection, type ConnectionCreate } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 // ─── DB type icons & colours ──────────────────────────────────────────────────
 const DB_META: Record<string, { color: string; emoji: string }> = {
@@ -36,6 +46,14 @@ interface DBTypeInfo {
     note?: string;
 }
 
+interface TableInfo {
+    tableName: string;
+    tableType: string;
+    schemaName: string;
+    rowCount: number;
+    columns: { name: string; type: string }[];
+}
+
 // ─── Hooks ───────────────────────────────────────────────────────────────────
 // ─── DB Types hook — uses api instance (token from memory, NOT localStorage) ───
 function useDBTypes() {
@@ -57,6 +75,14 @@ function useConnections() {
     });
 }
 
+function useConnectionSchema(connectionId: string | null) {
+    return useQuery<TableInfo[]>({
+        queryKey: ['connection-schema', connectionId],
+        queryFn: () => connectionApi.schema(connectionId!).then((r: any) => r.data.data),
+        enabled: !!connectionId,
+    });
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ConnectionsPage() {
     const qc = useQueryClient();
@@ -70,6 +96,9 @@ export default function ConnectionsPage() {
     const [queryConnId, setQueryConnId] = useState<string | null>(null);
     const [sqlDraft, setSqlDraft] = useState('SELECT 1');
     const [queryResult, setQueryResult] = useState<{ columns: string[]; data: Record<string, unknown>[]; durationMs: number } | null>(null);
+    const [showSchemaDialog, setShowSchemaDialog] = useState(false);
+    const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
+    const { data: schema, isLoading: isLoadingSchema } = useConnectionSchema(selectedConnection);
 
     // ── Create mutation ──
     const createMut = useMutation({
@@ -89,6 +118,21 @@ export default function ConnectionsPage() {
             qc.invalidateQueries({ queryKey: ['connections'] });
             toast({ title: 'Connection removed' });
         },
+        onError: (e: Error) => toast({ title: 'Delete failed', description: e.message, variant: 'destructive' }),
+    });
+
+    // ── Create Dataset mutation ──
+    const createDatasetMut = useMutation({
+        mutationFn: ({ id, tableName, schemaName }: { id: string; tableName: string; schemaName: string }) =>
+            connectionApi.createDataset(id, { tableName, schemaName }),
+        onSuccess: (data) => {
+            toast({ title: `Dataset ${data.name} created successfully` });
+            qc.invalidateQueries({ queryKey: ['datasets'] }); // Assuming a 'datasets' query key
+        },
+        onError: (err: any) => {
+            const errorMessage = err.response?.data?.error || err.message || 'Failed to create dataset';
+            toast({ title: 'Create Dataset failed', description: errorMessage, variant: 'destructive' });
+        },
     });
 
     // ── Test connection ──
@@ -96,13 +140,13 @@ export default function ConnectionsPage() {
         setTestingId(id);
         try {
             const res = await connectionApi.test(id);
-            if (res.data.status === 'connected') {
-                toast({ title: `Connected! Latency: ${res.data.latencyMs}ms` });
+            if (res.status === 'success' || res.status === 'ok') {
+                toast({ title: 'Connected successfully!', description: `Latency: ${res.latencyMs}ms` });
             } else {
                 toast({ title: 'Connection failed', description: 'Check credentials', variant: 'destructive' });
             }
-        } catch {
-            toast({ title: 'Connection test failed', variant: 'destructive' });
+        } catch (e: any) {
+            toast({ title: 'Connection test failed', description: e.message, variant: 'destructive' });
         } finally {
             setTestingId(null);
         }
@@ -114,9 +158,10 @@ export default function ConnectionsPage() {
         try {
             await connectionApi.sync(id);
             qc.invalidateQueries({ queryKey: ['connections'] });
+            qc.invalidateQueries({ queryKey: ['connection-schema', id] }); // Invalidate schema for this connection
             toast({ title: 'Schema synced!' });
-        } catch {
-            toast({ title: 'Schema sync failed', variant: 'destructive' });
+        } catch (e: any) {
+            toast({ title: 'Schema sync failed', description: e.message, variant: 'destructive' });
         } finally {
             setSyncingId(null);
         }
@@ -125,10 +170,10 @@ export default function ConnectionsPage() {
     // ── Query ──
     const handleQuery = async (id: string) => {
         try {
-            const res = await connectionApi.query(id, sqlDraft, 200);
-            setQueryResult({ columns: res.data.columns, data: res.data.data, durationMs: res.data.rowCount });
-        } catch {
-            toast({ title: 'Query failed', variant: 'destructive' });
+            const res = await connectionApi.query(id, { sql: sqlDraft, limit: 200 });
+            setQueryResult({ columns: res.columns, data: res.data, durationMs: res.rowCount });
+        } catch (e: any) {
+            toast({ title: 'Query failed', description: e.message, variant: 'destructive' });
         }
     };
 
@@ -237,6 +282,12 @@ export default function ConnectionsPage() {
                                             Query
                                         </button>
 
+                                        <button onClick={() => { setSelectedConnection(conn.id); setShowSchemaDialog(true); }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 transition">
+                                            <Search className="w-3.5 h-3.5" />
+                                            Schema
+                                        </button>
+
                                         <button onClick={() => setExpandedId(expanded ? null : conn.id)}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition ml-auto">
                                             {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -310,6 +361,77 @@ export default function ConnectionsPage() {
                     />
                 )}
             </AnimatePresence>
+
+            {/* Schema Dialog */}
+            <Dialog open={showSchemaDialog} onOpenChange={setShowSchemaDialog}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Schema for {conns.find(c => c.id === selectedConnection)?.name}</DialogTitle>
+                        <DialogDescription>
+                            Browse tables and columns for this connection.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="h-[60vh]">
+                        {isLoadingSchema ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                            </div>
+                        ) : schema && schema.length > 0 ? (
+                            <ScrollArea className="h-full pr-4">
+                                <div className="space-y-4">
+                                    {schema.map((table) => (
+                                        <div key={`${table.schemaName}.${table.tableName} `} className="border border-border rounded-lg p-4">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <h4 className="font-medium flex items-center gap-2">
+                                                    {table.tableName}
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {table.tableType}
+                                                    </Badge>
+                                                </h4>
+                                                <div className="flex items-center gap-4">
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {table.rowCount.toLocaleString()} rows
+                                                    </span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 text-xs"
+                                                        disabled={createDatasetMut.isPending}
+                                                        onClick={() => createDatasetMut.mutate({
+                                                            id: selectedConnection!,
+                                                            tableName: table.tableName,
+                                                            schemaName: table.schemaName
+                                                        })}
+                                                    >
+                                                        <LayoutGrid className="w-3 h-3 mr-1" />
+                                                        Create Dataset
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground space-y-1">
+                                                {table.columns.map(col => (
+                                                    <p key={col.name} className="flex items-center gap-2">
+                                                        <span className="font-mono text-foreground">{col.name}</span>
+                                                        <span className="text-[10px] uppercase px-1 py-0.5 rounded-sm bg-muted">{col.type}</span>
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        ) : (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Database className="w-10 h-10 mx-auto mb-3" />
+                                <p>No schema found or connection not synced.</p>
+                                <Button variant="link" onClick={() => handleSync(selectedConnection!)} className="mt-2">
+                                    <RefreshCcw className="w-4 h-4 mr-2" /> Sync Schema
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -390,7 +512,7 @@ function AddConnectionModal({
                                 const meta = dbMeta(t.id);
                                 return (
                                     <button key={t.id} type="button" onClick={() => handleTypeChange(t.id)}
-                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${form.dbType === t.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/40'}`}>
+                                        className={`flex items - center gap - 2 px - 3 py - 2 rounded - lg text - xs font - medium border transition - all ${form.dbType === t.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/40'} `}>
                                         <span>{meta.emoji}</span>
                                         <span className="capitalize truncate">{t.label ?? t.id}</span>
                                     </button>

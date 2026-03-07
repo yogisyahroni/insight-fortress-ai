@@ -246,6 +246,57 @@ func (h *SchemaHandler) GetSchema(c *fiber.Ctx) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/connections/:id/create-dataset
+// ─────────────────────────────────────────────────────────────────────────────
+
+// CreateDataset provisions a Dataset referencing an external table schema.
+func (h *SchemaHandler) CreateDataset(c *fiber.Ctx) error {
+	userID := middleware.GetUserID(c)
+	connID := c.Params("id")
+
+	conn, err := h.loadConn(connID, userID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Connection not found"})
+	}
+
+	var req struct {
+		TableName  string `json:"tableName"`
+		SchemaName string `json:"schemaName"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	if req.TableName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "tableName is required"})
+	}
+
+	// Cari meta tabel dari SchemaTable hasil sync
+	var schemaTable models.SchemaTable
+	if err := h.db.Where("connection_id = ? AND table_name = ? AND schema_name = ?", connID, req.TableName, req.SchemaName).First(&schemaTable).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Schema table not found. Please sync connection first."})
+	}
+
+	ds := models.Dataset{
+		UserID:        userID,
+		Name:          fmt.Sprintf("%s / %s", conn.Name, req.TableName),
+		FileName:      fmt.Sprintf("%s.%s", req.SchemaName, req.TableName),
+		Columns:       schemaTable.Columns, // re-use columns from sync
+		RowCount:      int(schemaTable.RowCount),
+		SizeBytes:     0,
+		StorageKey:    fmt.Sprintf("EXTERNAL_CONN::%s", connID), // Marker this is an external connection dataset
+		DataTableName: fmt.Sprintf("%s.%s", req.SchemaName, req.TableName),
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	if err := h.db.Create(&ds).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create dataset"})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(ds)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/v1/connections/:id/query
 // ─────────────────────────────────────────────────────────────────────────────
 

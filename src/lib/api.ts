@@ -237,14 +237,15 @@ export const pipelineApi = {
 export const connectionApi = {
     list: () => api.get<{ data: DBConnection[] }>('/connections'),
     create: (payload: ConnectionCreate) => api.post<DBConnection>('/connections', payload),
-    test: (id: string) => api.post<{ status: string; latencyMs: number }>(`/connections/${id}/test`),
+    test: (id: string) => api.post<{ status: string; latencyMs: number }>(`/connections/${id}/test`).then((res) => res.data),
     schema: (id: string) => api.get<{ data: unknown[] }>(`/connections/${id}/schema`),
-    sync: (id: string) => api.post(`/connections/${id}/sync`),
-    query: (id: string, sql: string, limit?: number) =>
-        api.post<{ columns: string[]; data: Record<string, unknown>[]; rowCount: number }>(
-            `/connections/${id}/query`, { sql, limit: limit ?? 100 }
-        ),
-    delete: (id: string) => api.delete(`/connections/${id}`),
+    sync: (id: string) =>
+        api.post(`/connections/${id}/sync`).then((res) => res.data),
+    createDataset: (id: string, payload: { tableName: string; schemaName: string }) =>
+        api.post(`/connections/${id}/create-dataset`, payload).then((res) => res.data),
+    query: (id: string, payload: { sql: string; limit?: number }) =>
+        api.post<{ columns: string[]; data: Record<string, unknown>[]; rowCount: number }>(`/connections/${id}/query`, payload).then((res) => res.data),
+    delete: (id: string) => api.delete(`/connections/${id}`).then((res) => res.data),
 };
 
 // BUG-H5: Bookmarks
