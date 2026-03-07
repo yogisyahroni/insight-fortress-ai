@@ -316,6 +316,10 @@ export interface DataQueryParams {
 
 export interface DataQueryResult {
     data: Record<string, unknown>[];
+    columns?: ColumnDef[]; // Array of columns metadata returned from backend
+    metadata?: {
+        columns: ColumnDef[];
+    };
     total: number;
     page: number;
     limit: number;

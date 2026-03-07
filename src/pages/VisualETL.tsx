@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import ETLNode from '@/components/etl/ETLNodes';
-import { useCreatePipeline, useRunPipeline, useDatasets } from '@/hooks/useApi';
+import { useCreatePipeline, useRunPipeline, useDatasets, useDatasetData } from '@/hooks/useApi';
 
 const nodeTypes = { etlNode: ETLNode };
 
@@ -59,6 +59,12 @@ function VisualETLInner() {
 
   const createPipelineMut = useCreatePipeline();
   const runPipelineMut = useRunPipeline();
+
+  // BUG-FIX: Fetch metadata `columns` dynamically through useDatasetData via sourceDatasetId
+  const sourceNode = nodes.find((n) => (n.data as any).nodeType === 'source');
+  const sourceDatasetId = (sourceNode?.data as any)?.config?.dataSetId ?? '';
+  const { data: sourceData } = useDatasetData(sourceDatasetId, { limit: 1 });
+  const datasetColumns = sourceData?.columns || sourceData?.metadata?.columns || [];
 
   const onConnect = useCallback((params: Connection) => {
     setEdges(eds => addEdge({
@@ -115,9 +121,6 @@ function VisualETLInner() {
       toast({ title: 'No nodes', description: 'Add nodes to the pipeline first' });
       return null;
     }
-    // Find source node for sourceDatasetId
-    const sourceNode = nodes.find((n) => (n.data as any).nodeType === 'source');
-    const sourceDatasetId = (sourceNode?.data as any)?.config?.dataSetId ?? '';
 
     // Build steps from non-source nodes
     const steps = nodes
@@ -140,7 +143,7 @@ function VisualETLInner() {
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, pipelineName, createPipelineMut, toast]);
+  }, [nodes, pipelineName, createPipelineMut, toast, sourceDatasetId]);
 
   const runPipeline = useCallback(async () => {
     if (nodes.length === 0) { toast({ title: 'No nodes', description: 'Add nodes to the pipeline first' }); return; }
@@ -268,7 +271,7 @@ function VisualETLInner() {
             nodeType={configDialog.nodeType}
             config={configDialog.config}
             dataSets={dataSets}
-            columns={dataSets.find(ds => ds.id === nodes.find(n => (n.data as any).nodeType === 'source')?.data?.config?.dataSetId)?.columns || []}
+            columns={datasetColumns}
             onSave={updateNodeConfig}
           />
         </DialogContent>
