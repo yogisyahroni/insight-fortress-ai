@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import ETLNode from '@/components/etl/ETLNodes';
-import { useCreatePipeline, useRunPipeline, useDatasets, useDatasetData } from '@/hooks/useApi';
+import { useCreatePipeline, useRunPipeline, useDatasets } from '@/hooks/useApi';
 
 const nodeTypes = { etlNode: ETLNode };
 
@@ -60,11 +60,11 @@ function VisualETLInner() {
   const createPipelineMut = useCreatePipeline();
   const runPipelineMut = useRunPipeline();
 
-  // BUG-FIX: Fetch metadata `columns` dynamically through useDatasetData via sourceDatasetId
+  // Fetch metadata `columns` from the loaded datasets instead of doing another data fetch
   const sourceNode = nodes.find((n) => (n.data as any).nodeType === 'source');
   const sourceDatasetId = (sourceNode?.data as any)?.config?.dataSetId ?? '';
-  const { data: sourceData } = useDatasetData(sourceDatasetId, { limit: 1 });
-  const datasetColumns = sourceData?.columns || sourceData?.metadata?.columns || [];
+  const selectedDataset = dataSets.find((ds: any) => ds.id === sourceDatasetId);
+  const datasetColumns = selectedDataset?.columns || [];
 
   const onConnect = useCallback((params: Connection) => {
     setEdges(eds => addEdge({
