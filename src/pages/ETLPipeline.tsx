@@ -16,6 +16,7 @@ import type { ETLPipeline as ETLPipelineType, ETLStep } from '@/types/data';
 import { cn } from '@/lib/utils';
 import { HelpTooltip } from '@/components/HelpTooltip';
 import { useDatasets } from '@/hooks/useApi';
+import { datasetApi } from '@/lib/api';
 
 function generateId() {
   return Math.random().toString(36).substring(2, 15);
@@ -356,7 +357,7 @@ export default function ETLPipelinePage() {
     updatePipeline(pipelineId, { steps: pipeline.steps.filter(s => s.id !== stepId) });
   };
 
-  const runPipeline = (pipelineId: string) => {
+  const runPipeline = async (pipelineId: string) => {
     const pipeline = pipelines.find(p => p.id === pipelineId);
     if (!pipeline) return;
     const sourceDs = dataSets.find(ds => ds.id === pipeline.sourceDataSetId);
@@ -368,13 +369,15 @@ export default function ETLPipelinePage() {
     updatePipeline(pipelineId, { status: 'running' });
 
     try {
-      const result = executePipeline(sourceDs.data, pipeline.steps);
+      const response = await datasetApi.data(sourceDs.id, { limit: 50000 });
+      const sourceData = response.data.data || [];
+      const result = executePipeline(sourceData, pipeline.steps);
       setPreviewData(prev => ({ ...prev, [pipelineId]: result }));
       updatePipeline(pipelineId, { status: 'completed', lastRun: new Date() });
       toast({ title: 'Pipeline completed', description: `${result.length} rows output.` });
     } catch (err: any) {
       updatePipeline(pipelineId, { status: 'error' });
-      toast({ title: 'Pipeline error', description: err.message, variant: 'destructive' });
+      toast({ title: 'Pipeline error', description: err.message || 'An error occurred during execution', variant: 'destructive' });
     }
   };
 

@@ -28,8 +28,14 @@ export default function PivotTable() {
     if (!meta) return null;
     return { ...meta, data: __datasetDataRes?.data || [] };
   }, [dataSets, dsId, __datasetDataRes]);
-  const strCols = dataset?.columns.filter(c => c.type === 'string') || [];
-  const numCols = dataset?.columns.filter(c => c.type === 'number') || [];
+  const isNum = (type?: string) => {
+    if (!type) return false;
+    const t = type.toLowerCase();
+    return ['numeric', 'number', 'int', 'float', 'double', 'decimal', 'real', 'integer', 'int4', 'int8', 'float4', 'float8'].some(val => t.includes(val));
+  };
+
+  const strCols = dataset?.columns.filter(c => !isNum(c.type)) || [];
+  const numCols = dataset?.columns.filter(c => isNum(c.type)) || [];
 
   const pivotData = useMemo(() => {
     if (!dataset || !rowField || !valueField) return null;

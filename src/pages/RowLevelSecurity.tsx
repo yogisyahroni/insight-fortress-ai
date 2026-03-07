@@ -2,7 +2,6 @@ import React from 'react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Plus, Trash2 } from 'lucide-react';
-import { useDataStore } from '@/stores/dataStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
