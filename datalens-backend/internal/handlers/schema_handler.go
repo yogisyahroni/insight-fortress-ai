@@ -227,7 +227,7 @@ func (h *SchemaHandler) GetSchema(c *fiber.Ctx) error {
 
 	var tables []models.SchemaTable
 	if err := h.db.Where("connection_id = ?", conn.ID).
-		Order("tbl_name asc").Find(&tables).Error; err != nil {
+		Order("table_name asc").Find(&tables).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch schema"})
 	}
 
