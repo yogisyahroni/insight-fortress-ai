@@ -15,7 +15,7 @@ import {
 import { useDataStore } from '@/stores/dataStore';
 import { Button } from '@/components/ui/button';
 import { HelpTooltip } from '@/components/HelpTooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -266,6 +266,7 @@ function VisualETLInner() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Configure {NODE_PALETTE.find(p => p.type === configDialog.nodeType)?.label || 'Node'}</DialogTitle>
+            <DialogDescription className="sr-only">Configure {NODE_PALETTE.find(p => p.type === configDialog.nodeType)?.label || 'Node'} properties.</DialogDescription>
           </DialogHeader>
           <NodeConfigForm
             nodeType={configDialog.nodeType}
@@ -348,7 +349,7 @@ function NodeConfigForm({ nodeType, config, dataSets, columns = [], onSave }: { 
               <SelectTrigger><SelectValue placeholder="Select column..." /></SelectTrigger>
               <SelectContent>
                 {columns?.map((col: any) => {
-                  const val = col.id || col.accessorKey || col.key || (typeof col === 'string' ? col : '');
+                  const val = col.name || col.id || col.accessorKey || col.key || (typeof col === 'string' ? col : '');
                   const label = col.name || col.header || (typeof col === 'string' ? col : val);
                   if (!val) return null;
                   return <SelectItem key={val} value={val}>{label}</SelectItem>;
