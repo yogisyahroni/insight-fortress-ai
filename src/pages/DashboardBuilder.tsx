@@ -177,8 +177,10 @@ export default function DashboardBuilder() {
   // Selection state for Property Right Panel
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
 
-  const activeDashboard: any = dashboards.find((d: any) => d.id === activeDashboardId) || null;
-  const selectedWidget: any = activeDashboard?.widgets?.find((w: any) => w.id === selectedWidgetId) || null;
+  const safeDashboards = Array.isArray(dashboards) ? dashboards : [];
+  const activeDashboard: any = safeDashboards.find((d: any) => d.id === activeDashboardId) || null;
+  const safeWidgets = Array.isArray(activeDashboard?.widgets) ? activeDashboard.widgets : [];
+  const selectedWidget: any = safeWidgets.find((w: any) => w.id === selectedWidgetId) || null;
 
   // --- Multiplayer (Phase 15) ---
   const { cursors, ydocReady, ydoc } = useMultiplayer(activeDashboardId);
