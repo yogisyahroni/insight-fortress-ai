@@ -439,17 +439,19 @@ export default function ETLPipelinePage() {
 
       // 2. Create a Blob and File from CSV string
       const blob = new Blob([csvStr], { type: 'text/csv' });
-      const filename = `${pipeline.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_output.csv`;
+      const cleanName = pipeline.name.replace(/[^a-zA-Z0-9\s-]/g, '').trim();
+      const filename = `${cleanName.replace(/\s+/g, '_').toLowerCase()}_output.csv`;
       const file = new File([blob], filename, { type: 'text/csv' });
 
       // 3. Prepare FormData
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('name', `${pipeline.name} (Output)`); // Set a nice name for the dataset
 
       // 4. Upload to backend
       await uploadDatasetMut.mutateAsync(formData);
 
-      toast({ title: 'Output saved', description: `Saved as "${filename}" dataset.` });
+      toast({ title: 'Output saved', description: `Saved as dataset "${pipeline.name} (Output)". It is now available for reports and charts.` });
     } catch (error) {
       toast({ title: 'Failed to save', description: 'Could not upload the processed dataset.', variant: 'destructive' });
     }
@@ -580,7 +582,7 @@ When the user asks in natural language, generate the appropriate steps. Return J
                           <Play className="w-4 h-4 mr-1" /> Run
                         </Button>
                         {preview && (
-                          <Button size="sm" variant="outline" onClick={() => saveOutput(pipeline.id)}>
+                          <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => saveOutput(pipeline.id)}>
                             <Save className="w-4 h-4 mr-1" /> Save Output
                           </Button>
                         )}

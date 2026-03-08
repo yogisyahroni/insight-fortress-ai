@@ -79,7 +79,7 @@ export function AIChatPanel({
     }
   };
 
-  const configured = !!aiConfig?.provider;
+  const configured = !!aiConfig?.hasApiKey;
 
   return (
     <div className={cn('bg-card rounded-xl border border-border shadow-card flex flex-col', className)}>
