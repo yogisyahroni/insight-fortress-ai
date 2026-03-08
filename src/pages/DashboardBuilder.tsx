@@ -6,7 +6,7 @@ import {
   LayoutGrid, Plus, Trash2, GripVertical, BarChart3, X, Move, Maximize2, Minimize2, Loader2,
   LineChart, PieChart, AreaChart, ScatterChart as ScatterIcon,
   Radar, TrendingUp, Grid3X3, Flame, Box, Settings, Database, Edit2, Columns, Filter,
-  HelpCircle, ChevronRight, Share2, Users, Search, Check, Download, MousePointer2, Settings2, AlertCircle, Variable, PenTool, Braces, Link2, Sparkles, MessageSquare, Zap, Gauge, SunMedium, Network, Combine
+  HelpCircle, ChevronRight, Share2, Users, Search, Check, Download, MousePointer2, Settings2, AlertCircle, Variable, PenTool, Braces, Link2, Sparkles, MessageSquare, Zap, Gauge, SunMedium, Network, Combine, Hash, Type, FunctionSquare
 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
@@ -1169,78 +1169,117 @@ export default function DashboardBuilder() {
             <Database className="w-4 h-4 text-primary" /> Sumber Data (Assets)
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {dataSets.map(ds => (
-              <div key={ds.id} className="space-y-2">
-                <p className="font-semibold text-sm text-foreground">{ds.name}</p>
-                <div className="space-y-1 pl-2 border-l-2 border-primary/20">
-                  {ds.columns.map(c => (
-                    <div key={c.name} className="text-xs flex items-center gap-2 text-muted-foreground">
-                      <span className={`w-2 h-2 rounded-full ${c.type === 'number' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
-                      {c.name}
-                    </div>
-                  ))}
-                  {allCalcFields.filter(cf => cf.datasetId === ds.id).map(cf => (
-                    <div key={cf.id} className="text-xs flex items-center justify-between text-primary font-medium group">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-violet-500" />
-                        fx <i>{cf.name}</i>
+            {dataSets.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-background rounded-xl border border-dashed border-border shadow-sm mt-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                  <Database className="w-6 h-6 text-primary/70" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1.5">Belum Ada Dataset</h4>
+                <p className="text-xs text-muted-foreground mb-5 leading-relaxed">Koneksikan database eksternal atau impor file untuk mulai merancang visualisasi.</p>
+                <Button variant="default" size="sm" className="w-full text-xs shadow-sm bg-primary hover:bg-primary/90 transition-colors" onClick={() => window.location.href = '/datasets'}>
+                  <Database className="w-3.5 h-3.5 mr-2" /> Kelola Dataset
+                </Button>
+              </div>
+            )}
+
+            {dataSets.map(ds => {
+              const dimensions = ds.columns.filter(c => c.type !== 'number');
+              const measures = ds.columns.filter(c => c.type === 'number');
+              const calculated = allCalcFields.filter(cf => cf.datasetId === ds.id);
+
+              return (
+                <div key={ds.id} className="space-y-3 mb-6 bg-background rounded-xl border border-border/50 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-border">
+                  <div className="bg-muted/30 p-3 flex items-center justify-between border-b border-border/50">
+                    <span className="font-semibold text-sm text-foreground truncate" title={ds.name}>{ds.name}</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary transition-colors bg-background border shadow-sm" title="Edit Metadata Dataset" onClick={() => window.location.href = `/datasets`}>
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+
+                  <div className="p-3 space-y-5">
+                    <div className="space-y-2">
+                      <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Dimensi (Kategori)</h5>
+                      <div className="space-y-0.5">
+                        {dimensions.map(c => (
+                          <div key={c.name} className="flex items-center gap-2.5 text-xs text-foreground/80 hover:text-foreground hover:bg-muted/60 p-1.5 rounded-lg transition-colors cursor-default group">
+                            <Type className="w-3.5 h-3.5 text-blue-500/80 group-hover:text-blue-500 transition-colors" /> {c.name}
+                          </div>
+                        ))}
                       </div>
-                      <X className="w-3 h-3 text-destructive cursor-pointer opacity-0 group-hover:opacity-100" onClick={() => deleteCalcMut.mutate(cf.id)} />
                     </div>
-                  ))}
-                  <div className="pt-2">
-                    <Sheet open={calcOpen && calcDatasetId === ds.id} onOpenChange={(open) => {
-                      setCalcOpen(open);
-                      if (open) setCalcDatasetId(ds.id);
-                    }}>
-                      <SheetTrigger asChild>
-                        <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground hover:text-primary h-6 justify-start px-0" onClick={() => setCalcDatasetId(ds.id)}>
-                          <Plus className="w-3 h-3 mr-1" /> Add Formula
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent className="bg-card w-[400px] border-l border-border overflow-y-auto z-50">
-                        <SheetHeader className="mb-6 border-b border-border pb-4">
-                          <SheetTitle className="flex items-center gap-2">
-                            <Variable className="w-5 h-5 text-violet-500" /> Formula Editor (DLX)
-                          </SheetTitle>
-                        </SheetHeader>
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label>Field Name</Label>
-                            <Input placeholder="e.g. Profit Margin" value={calcName} onChange={e => setCalcName(e.target.value)} />
+
+                    <div className="space-y-2 pt-3 border-t border-border/40">
+                      <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Metrik (Nilai Numerik)</h5>
+                      <div className="space-y-0.5">
+                        {measures.map(c => (
+                          <div key={c.name} className="flex items-center gap-2.5 text-xs text-foreground/80 hover:text-foreground hover:bg-muted/60 p-1.5 rounded-lg transition-colors cursor-default group">
+                            <Hash className="w-3.5 h-3.5 text-emerald-500/80 group-hover:text-emerald-500 transition-colors" /> {c.name}
                           </div>
-                          <div className="space-y-2">
-                            <Label>Expression (PostgreSQL Syntax)</Label>
-                            <textarea
-                              className="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono"
-                              placeholder='e.g. "sales" - "cost"'
-                              value={calcFormula}
-                              onChange={e => setCalcFormula(e.target.value)}
-                            />
-                            <p className="text-xs text-muted-foreground">Use double quotes for column names (e.g. <code className="text-violet-500">"revenue" / "orders"</code>). No subqueries allowed here.</p>
+                        ))}
+                        {calculated.map(cf => (
+                          <div key={cf.id} className="flex items-center justify-between text-xs text-violet-600 font-medium hover:bg-violet-50 p-1.5 rounded-lg transition-colors cursor-default group">
+                            <div className="flex items-center gap-2.5">
+                              <FunctionSquare className="w-3.5 h-3.5 opacity-80" /> <span className="truncate max-w-[140px]" title={cf.name}>{cf.name}</span>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/10 transition-opacity" onClick={() => deleteCalcMut.mutate(cf.id)} title="Hapus Formula">
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
                           </div>
-                          <Button className="w-full" disabled={!calcName || !calcFormula || createCalcMut.isPending} onClick={() => {
-                            createCalcMut.mutate({ datasetId: ds.id, name: calcName, formula: calcFormula }, {
-                              onSuccess: () => {
-                                toast({ title: 'Formula saved successfully.' });
-                                setCalcName('');
-                                setCalcFormula('');
-                                setCalcOpen(false);
-                              }
-                            });
-                          }}>
-                            Save Calculated Field
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-border/40 flex justify-center">
+                      <Sheet open={calcOpen && calcDatasetId === ds.id} onOpenChange={(open) => {
+                        setCalcOpen(open);
+                        if (open) setCalcDatasetId(ds.id);
+                      }}>
+                        <SheetTrigger asChild>
+                          <Button variant="secondary" size="sm" className="w-full text-xs hover:text-primary transition-colors bg-muted/50 hover:bg-muted" onClick={() => setCalcDatasetId(ds.id)}>
+                            <Plus className="w-3.5 h-3.5 mr-1.5" /> Tambah Formula Baru
                           </Button>
-                        </div>
-                      </SheetContent>
-                    </Sheet>
+                        </SheetTrigger>
+                        <SheetContent className="bg-card w-[400px] border-l border-border overflow-y-auto z-50 shadow-2xl">
+                          <SheetHeader className="mb-6 border-b border-border pb-4">
+                            <SheetTitle className="flex items-center gap-2">
+                              <Variable className="w-5 h-5 text-violet-500" /> Formula Editor (DLX)
+                            </SheetTitle>
+                          </SheetHeader>
+                          <div className="space-y-5">
+                            <div className="space-y-2">
+                              <Label className="font-semibold text-sm">Nama Formula (Metrik)</Label>
+                              <Input className="shadow-sm" placeholder="Contoh: Profit Margin" value={calcName} onChange={e => setCalcName(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="font-semibold text-sm">Ekspresi (Sintaks PostgreSQL)</Label>
+                              <textarea
+                                className="flex min-h-[140px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                                placeholder='e.g. "sales" - "cost"'
+                                value={calcFormula}
+                                onChange={e => setCalcFormula(e.target.value)}
+                              />
+                              <p className="text-xs text-muted-foreground/80 bg-muted/50 p-2 rounded-md border">Gunakan kutip ganda untuk nama kolom tabel asli. Contoh: <code className="text-violet-500 font-semibold px-1">"revenue" / "orders"</code>. Subquery tidak diperbolehkan.</p>
+                            </div>
+                            <Button className="w-full shadow-md mt-4" disabled={!calcName || !calcFormula || createCalcMut.isPending} onClick={() => {
+                              createCalcMut.mutate({ datasetId: ds.id, name: calcName, formula: calcFormula }, {
+                                onSuccess: () => {
+                                  toast({ title: 'Formula berhasil disimpan.' });
+                                  setCalcName('');
+                                  setCalcFormula('');
+                                  setCalcOpen(false);
+                                }
+                              });
+                            }}>
+                              Simpan Calculated Field
+                            </Button>
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            {dataSets.length === 0 && (
-              <p className="text-sm text-muted-foreground italic">No datasets available.</p>
-            )}
+              )
+            })}
           </div>
         </div>
 
