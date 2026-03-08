@@ -46,7 +46,7 @@ import {
 export function useDatasets() {
     return useQuery({
         queryKey: ['datasets'],
-        queryFn: () => datasetApi.list().then((r) => r.data.data),
+        queryFn: () => datasetApi.list().then((r) => r.data.data || []),
         staleTime: 1000 * 60, // 1 min
     });
 }
@@ -139,7 +139,7 @@ export function useDeleteDashboard() {
 export function useReports() {
     return useQuery({
         queryKey: ['reports'],
-        queryFn: () => reportApi.list().then((r) => r.data.data),
+        queryFn: () => reportApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -190,7 +190,7 @@ export function useGenerateReport() {
 export function useStories() {
     return useQuery({
         queryKey: ['stories'],
-        queryFn: () => storyApi.list().then((r) => r.data.data),
+        queryFn: () => storyApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -216,7 +216,7 @@ export function useDeleteStory() {
 export function useKPIs() {
     return useQuery({
         queryKey: ['kpis'],
-        queryFn: () => kpiApi.list().then((r) => r.data.data),
+        queryFn: () => kpiApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -242,7 +242,7 @@ export function useDeleteKPI() {
 export function useAlerts() {
     return useQuery({
         queryKey: ['alerts'],
-        queryFn: () => alertApi.list().then((r) => r.data.data),
+        queryFn: () => alertApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -276,7 +276,7 @@ export function useDeleteAlert() {
 export function useCronJobs() {
     return useQuery({
         queryKey: ['cron-jobs'],
-        queryFn: () => cronApi.list().then((r) => r.data.data),
+        queryFn: () => cronApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -320,7 +320,7 @@ import { chartApi, pipelineApi, connectionApi, type SavedChartCreate, type Pipel
 export function useCharts(datasetId?: string) {
     return useQuery({
         queryKey: ['charts', datasetId],
-        queryFn: () => chartApi.list(datasetId).then((r) => r.data.data),
+        queryFn: () => chartApi.list(datasetId).then((r) => r.data.data || []),
         staleTime: 1000 * 60,
     });
 }
@@ -355,7 +355,7 @@ export function useDeleteChart() {
 export function usePipelines() {
     return useQuery({
         queryKey: ['pipelines'],
-        queryFn: () => pipelineApi.list().then((r) => r.data.data),
+        queryFn: () => pipelineApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -396,7 +396,7 @@ export function useDeletePipeline() {
 export function useConnections() {
     return useQuery({
         queryKey: ['connections'],
-        queryFn: () => connectionApi.list().then((r) => r.data.data),
+        queryFn: () => connectionApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -422,7 +422,7 @@ export function useDeleteConnection() {
 export function useBookmarks() {
     return useQuery({
         queryKey: ['bookmarks'],
-        queryFn: () => bookmarkApi.list().then((r) => r.data.data),
+        queryFn: () => bookmarkApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -448,7 +448,7 @@ export function useDeleteBookmark() {
 export function useAnnotations(datasetId?: string) {
     return useQuery({
         queryKey: ['annotations', datasetId],
-        queryFn: () => annotationApi.list(datasetId).then((r) => r.data.data),
+        queryFn: () => annotationApi.list(datasetId).then((r) => r.data.data || []),
     });
 }
 
@@ -474,7 +474,7 @@ export function useDeleteAnnotation(datasetId?: string) {
 export function useReportTemplates() {
     return useQuery({
         queryKey: ['report-templates'],
-        queryFn: () => reportTemplateApi.list().then((r) => r.data.data),
+        queryFn: () => reportTemplateApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -500,7 +500,7 @@ export function useDeleteReportTemplate() {
 export function useRelationships() {
     return useQuery({
         queryKey: ['relationships'],
-        queryFn: () => relationshipApi.list().then((r) => r.data.data),
+        queryFn: () => relationshipApi.list().then((r) => r.data.data || []),
     });
 }
 
@@ -779,7 +779,7 @@ import { commentApi, CreateCommentPayload } from '@/lib/api';
 export function useComments(dashboardId: string | null) {
     return useQuery({
         queryKey: ['comments', dashboardId],
-        queryFn: () => dashboardId ? commentApi.getAll(dashboardId).then(res => res.data.data) : Promise.resolve([]),
+        queryFn: () => dashboardId ? commentApi.getAll(dashboardId).then(res => res.data.data || []) : Promise.resolve([]),
         enabled: !!dashboardId,
     });
 }
